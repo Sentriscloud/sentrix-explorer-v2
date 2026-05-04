@@ -1,0 +1,9 @@
+pub mod address_detail;
+pub mod assets;
+pub mod block_detail;
+pub mod contracts;
+pub mod dashboard;
+pub mod lab;
+pub mod not_found;
+pub mod tx_detail;
+pub mod verified;

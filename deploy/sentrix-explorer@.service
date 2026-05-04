@@ -1,0 +1,46 @@
+# Templated unit — instantiated per network.
+#
+#   sudo systemctl enable --now sentrix-explorer@mainnet
+#   sudo systemctl enable --now sentrix-explorer@testnet
+#
+# Each instance lives in /var/www/sentrix-explorer/<instance>/ and binds
+# to a different localhost port (see ExecStart below). The binary itself
+# already knows which network it serves — `SENTRIX_NETWORK` was baked in
+# at build time — so the env var here is for the Leptos site_addr only.
+
+[Unit]
+Description=Sentrix Explorer V2 — %i
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/sentrix-explorer/%i
+
+# Per-instance ports: mainnet=3000, testnet=3001. The Caddyfile reverse
+# proxy expects these. To repoint, edit /etc/sentrix-explorer/%i.env
+# (created by operator) and reference it here via EnvironmentFile.
+Environment=LEPTOS_OUTPUT_NAME=sentrix-explorer-v2
+Environment=LEPTOS_SITE_ROOT=/var/www/sentrix-explorer/%i/site
+Environment=LEPTOS_SITE_PKG_DIR=pkg
+Environment=LEPTOS_ENV=PROD
+Environment=LEPTOS_SITE_ADDR=127.0.0.1:3000
+EnvironmentFile=-/etc/sentrix-explorer/%i.env
+
+ExecStart=/var/www/sentrix-explorer/%i/sentrix-explorer-v2
+
+# Hardening — read-only HTML+WASM server with no local state needs none
+# of the privileges systemd hands out by default.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/sentrix-explorer/%i
+
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,210 @@
+use leptos::prelude::*;
+use leptos_router::components::A;
+
+use crate::components::lang_switcher::LanguageSwitcher;
+use crate::components::metamask::MetaMaskButton;
+use crate::config::Network;
+use crate::context::network::ServiceRegistry;
+use crate::i18n::{t, use_lang};
+use crate::state::feed::BlockFeedState;
+
+#[component]
+pub fn Navbar() -> impl IntoView {
+    let network = Network::current();
+    let services = use_context::<ServiceRegistry>().expect("ServiceRegistry context not provided");
+
+    let lang = use_lang();
+
+    let (badge_class, badge_text) = match network {
+        Network::Mainnet => (
+            "border-amber-500/30 bg-amber-500/10 text-amber-200",
+            "MAINNET",
+        ),
+        Network::Testnet => ("border-sky-500/30 bg-sky-500/10 text-sky-200", "TESTNET"),
+    };
+
+    let toggle_target = services.sibling_explorer;
+    let toggle_key = match network {
+        Network::Mainnet => "nav.switch_to_testnet",
+        Network::Testnet => "nav.switch_to_mainnet",
+    };
+
+    // Cross-subdomain navigation — flushes browser memory + rehydrates
+    // the bundle compiled for the *other* network. Same outcome as
+    // setting `window.location.href` directly, but routed through
+    // Leptos so SSR and CSR agree on the markup.
+    view! {
+        <header class="mb-8 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-6">
+                <a href=services.explorer class="flex items-center gap-3">
+                    <BrandMark />
+                    <div class="flex flex-col leading-tight">
+                        <span class="text-sm font-semibold tracking-wide text-zinc-100">
+                            "SENTRIX EXPLORER"
+                        </span>
+                        <span class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+                            "Obsidian Engine · Rust + WASM"
+                        </span>
+                    </div>
+                </a>
+
+                <nav class="hidden items-center gap-1 text-sm md:flex">
+                    <NavTab href="/" label_key="nav.dashboard" />
+                    <NavTab href="/assets" label_key="nav.assets" />
+                    <NavTab href="/lab" label_key="nav.lab" />
+                    <NavTab href="/contracts" label_key="nav.contracts" />
+                </nav>
+            </div>
+
+            <nav class="flex flex-wrap items-center justify-end gap-2 text-sm">
+                <ConnectionStatus />
+                <CommandHint />
+                <ExternalLink href=services.faucet label_key="nav.faucet" />
+                <ExternalLink href=services.wallet label_key="nav.wallet" />
+                <ExternalLink href=services.coinblast label_key="nav.coinblast" />
+                <MetaMaskButton />
+                <ThemeToggle />
+                <LanguageSwitcher />
+
+                <span class=format!(
+                    "rounded-md border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] {badge_class}"
+                )>{badge_text}</span>
+
+                <a
+                    href=toggle_target
+                    title=move || t(lang.get(), toggle_key)
+                    class="rounded-md border border-zinc-700/60 bg-zinc-900/60 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-amber-500/40 hover:text-amber-200"
+                >
+                    {move || t(lang.get(), toggle_key)}
+                </a>
+            </nav>
+        </header>
+    }
+}
+
+#[component]
+fn NavTab(href: &'static str, label_key: &'static str) -> impl IntoView {
+    let lang = use_lang();
+    view! {
+        <A
+            href=href
+            attr:class="rounded-md px-3 py-1.5 text-zinc-400 transition hover:text-zinc-100"
+        >
+            {move || t(lang.get(), label_key)}
+        </A>
+    }
+}
+
+#[component]
+fn ExternalLink(href: &'static str, label_key: &'static str) -> impl IntoView {
+    let lang = use_lang();
+    view! {
+        <a
+            href=href
+            target="_blank"
+            rel="noopener"
+            class="rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-1.5 text-zinc-300 transition hover:border-amber-500/40 hover:text-amber-200"
+        >
+            {move || t(lang.get(), label_key)}
+        </a>
+    }
+}
+
+#[component]
+fn ConnectionStatus() -> impl IntoView {
+    let feed = use_context::<BlockFeedState>().expect("BlockFeedState context");
+
+    // Map feed.status (free-form &'static str) to a state class. The
+    // state strings are produced by `state::feed`; matching by
+    // `contains` rather than equality gives us forward-compat against
+    // small wording tweaks there.
+    let dot_class = move || {
+        let s = feed.status.get();
+        if s.contains("error") {
+            "bg-rose-500"
+        } else if s.contains("polling") || s.contains("retry") {
+            "bg-amber-400"
+        } else if s.contains("streaming") || s.contains("live") {
+            "bg-emerald-400"
+        } else {
+            "bg-zinc-500"
+        }
+    };
+
+    view! {
+        <span class="hidden items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900/40 px-2.5 py-1 text-[11px] text-zinc-400 sm:inline-flex">
+            <span class=move || format!("h-1.5 w-1.5 rounded-full {}", dot_class())></span>
+            <span>{move || feed.status.get()}</span>
+        </span>
+    }
+}
+
+#[component]
+fn BrandMark() -> impl IntoView {
+    // Inline SVG of the canonical sentrix-mark-tight from
+    // brand-kit/svg. Bronze outline + filled inner diamond + four
+    // gold cardinal nodes. Inlined (rather than `<img src=…>`) so it
+    // tints with the surrounding theme on Solar mode without an
+    // extra fetch.
+    view! {
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="320 320 384 384"
+            class="h-8 w-8 shrink-0"
+            shape-rendering="geometricPrecision"
+            aria-label="Sentrix Chain"
+        >
+            <polygon
+                points="512,340 685,513 512,686 339,513"
+                fill="none"
+                stroke="#8A5A11"
+                stroke-width="12"
+                stroke-linejoin="miter"
+                stroke-miterlimit="10"
+            />
+            <polygon
+                points="512,438 586,512 512,586 438,512"
+                fill="#8A5A11"
+            />
+            <circle cx="512" cy="340" r="11" fill="#DBC17F" />
+            <circle cx="685" cy="513" r="11" fill="#DBC17F" />
+            <circle cx="512" cy="686" r="11" fill="#DBC17F" />
+            <circle cx="339" cy="513" r="11" fill="#DBC17F" />
+        </svg>
+    }
+}
+
+#[component]
+fn ThemeToggle() -> impl IntoView {
+    let on_click = move |_| {
+        let _ = crate::theme::toggle();
+    };
+    view! {
+        <button
+            type="button"
+            on:click=on_click
+            title="Toggle Obsidian / Solar"
+            class="rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-1.5 text-zinc-300 transition hover:border-amber-500/40 hover:text-amber-200"
+        >
+            // Sun + moon glyphs in one toggle. Solar shows sun-only,
+            // Obsidian shows the crescent — the parent .solar class
+            // swaps via display:none on the unselected glyph.
+            <span class="solar-only hidden">"☀"</span>
+            <span class="obsidian-only">"☾"</span>
+        </button>
+    }
+}
+
+#[component]
+fn CommandHint() -> impl IntoView {
+    // Static hint — keypress handler lives in `command_palette`. Mac
+    // shows ⌘K, others show Ctrl+K; we don't UA-sniff, just print
+    // both glyphs separated by a slash so it's unambiguous.
+    view! {
+        <span class="hidden items-center gap-1 rounded-md border border-zinc-800 bg-zinc-900/40 px-2.5 py-1 text-[11px] text-zinc-400 sm:inline-flex">
+            <kbd class="rounded border border-zinc-700 bg-zinc-800 px-1 py-0 font-mono text-[10px]">"⌘"</kbd>
+            <kbd class="rounded border border-zinc-700 bg-zinc-800 px-1 py-0 font-mono text-[10px]">"K"</kbd>
+            <span class="ml-1">"search"</span>
+        </span>
+    }
+}

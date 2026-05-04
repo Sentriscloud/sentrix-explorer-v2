@@ -1,0 +1,55 @@
+# Sentrix Explorer V2 — production Caddyfile snippet (host-side).
+#
+# Deploys behind Cloudflare proxied DNS (orange cloud → host). Caddy
+# obtains its own LE/ZeroSSL cert via TLS-ALPN at the origin; CF SSL
+# mode must be "Full" or "Full (Strict)" so the proxy validates the
+# upstream cert rather than tunnelling Flexible HTTP.
+#
+# Two upstream binaries — one per network — are run by systemd. See
+# `deploy/sentrix-explorer.service`. Network is compile-time baked
+# into each WASM bundle (src/config.rs), so the two ports serve
+# different artifacts, not the same binary with a runtime flag.
+
+# ── Mainnet ─────────────────────────────────────────────────────
+scan.sentriscloud.com {
+    encode zstd gzip
+    header Alt-Svc `h3=":443"; ma=86400`
+
+    # Read-only HTML+WASM — no inline JS, lock down framing & sniff.
+    header X-Content-Type-Options "nosniff"
+    header X-Frame-Options "DENY"
+    header Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Bundle is content-hashed by cargo-leptos — cache hard, HTML stays fresh.
+    @wasm path /pkg/*
+    header @wasm Cache-Control "public, max-age=31536000, immutable"
+
+    reverse_proxy 127.0.0.1:3000 {
+        header_up X-Forwarded-Proto "https"
+    }
+}
+
+# ── Testnet ─────────────────────────────────────────────────────
+scan-testnet.sentriscloud.com {
+    encode zstd gzip
+    header Alt-Svc `h3=":443"; ma=86400`
+
+    header X-Content-Type-Options "nosniff"
+    header X-Frame-Options "DENY"
+    header Referrer-Policy "strict-origin-when-cross-origin"
+
+    @wasm path /pkg/*
+    header @wasm Cache-Control "public, max-age=31536000, immutable"
+
+    reverse_proxy 127.0.0.1:3001 {
+        header_up X-Forwarded-Proto "https"
+    }
+}
+
+# Top-of-Caddyfile global — apply once, not per-site:
+#
+# {
+#     servers {
+#         protocols h1 h2 h3
+#     }
+# }

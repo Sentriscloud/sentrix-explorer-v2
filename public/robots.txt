@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Disallow: /pkg/
+
+# Detail pages are bookmarkable but the chain itself is the canonical
+# data source — search engines should index the dashboard + asset
+# pages, but per-block / per-tx URLs don't need crawling.
+Disallow: /block/
+Disallow: /tx/
+Disallow: /address/
+
+Sitemap: https://scan.sentriscloud.com/sitemap.xml

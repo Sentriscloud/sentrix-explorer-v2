@@ -1,0 +1,12 @@
+/target
+/dist
+/style/main.css
+/.env
+/Cargo.lock.bak
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.swo

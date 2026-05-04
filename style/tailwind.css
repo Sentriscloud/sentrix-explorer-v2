@@ -1,0 +1,226 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────────────────────────────
+   Obsidian Engine — Zinc + Amber theme
+   ─────────────────────────────────────────────────────────────── */
+
+:root {
+    color-scheme: dark;
+
+    /* Brand tokens — pulled from sentrix-labs/brand-kit/BRAND_GUIDE.md.
+       Bronze + gold are the canonical Sentrix Chain accents; black +
+       canvas anchor the dark surface. Defined as CSS vars so
+       JS-free theme overrides stay possible. */
+    --sentrix-black: #000000;
+    --sentrix-bronze: #8a5a11;
+    --sentrix-gold: #dbc17f;
+    --sentrix-canvas: #0a0a0c;
+}
+
+html,
+body {
+    @apply bg-zinc-950 text-zinc-100 antialiased;
+    font-feature-settings: "ss01", "cv11", "tnum";
+}
+
+body {
+    background-image:
+        radial-gradient(circle at 20% 0%, rgba(245, 158, 11, 0.05) 0%, transparent 50%),
+        radial-gradient(circle at 80% 100%, rgba(168, 85, 247, 0.04) 0%, transparent 60%);
+    background-attachment: fixed;
+}
+
+/* Mono-numeric tabular alignment for hashes / heights / amounts. */
+.font-mono {
+    font-variant-numeric: tabular-nums;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Component utilities
+   ─────────────────────────────────────────────────────────────── */
+
+@layer components {
+    /* Glass surface — primary panel chrome. Spec from product brief:
+         backdrop-filter: blur(12px)
+         background:      rgba(24, 24, 27, 0.6)
+         border:          1px solid rgba(63, 63, 70, 0.4)
+       Browsers without backdrop-filter (older Safari) fall through to a
+       solid zinc panel; the @supports check keeps that path readable. */
+    .glass-card {
+        background: rgba(24, 24, 27, 0.6);
+        border: 1px solid rgba(63, 63, 70, 0.4);
+        border-radius: 0.75rem; /* rounded-xl */
+        box-shadow:
+            0 25px 50px -12px rgba(0, 0, 0, 0.5),
+            inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    @supports (backdrop-filter: blur(12px)) or (-webkit-backdrop-filter: blur(12px)) {
+        .glass-card {
+            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+        }
+    }
+
+    /* Hover lift — adds the amber accent on interactive cards. */
+    .glass-card-interactive {
+        transition: border-color 200ms ease, transform 200ms ease;
+    }
+    .glass-card-interactive:hover {
+        border-color: rgba(245, 158, 11, 0.35);
+        transform: translateY(-1px);
+    }
+
+    /* Status pill — small rounded chip used on the live feed badge. */
+    .status-pill {
+        @apply rounded-full border border-zinc-700/60 bg-zinc-800/60 px-2.5 py-0.5
+               font-mono text-[10px] uppercase tracking-wider text-zinc-400;
+    }
+
+    /* Hex-mono — tabular-num font for chain hashes / heights. */
+    .hex {
+        @apply font-mono text-zinc-400;
+        letter-spacing: 0.01em;
+    }
+
+    /* Identicon shimmer — diagonal gradient sweep that loops every 6s.
+       Layered on top of the SVG via an absolutely-positioned overlay
+       so we don't touch the rect colors themselves. */
+    .identicon-frame {
+        position: relative;
+        overflow: hidden;
+    }
+    .identicon-frame::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            115deg,
+            transparent 30%,
+            rgba(255, 255, 255, 0.08) 50%,
+            transparent 70%
+        );
+        background-size: 250% 100%;
+        animation: identicon-shimmer 6s linear infinite;
+        pointer-events: none;
+    }
+    @keyframes identicon-shimmer {
+        0% { background-position: 250% 0; }
+        100% { background-position: -50% 0; }
+    }
+
+    /* Skeleton — neutral loading bar. Same shimmer geometry as the
+       identicon overlay but tuned brighter so a row of skeletons
+       reads as "loading" rather than "decorative". */
+    .skeleton-shimmer {
+        position: relative;
+        overflow: hidden;
+    }
+    .skeleton-shimmer::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            115deg,
+            transparent 30%,
+            rgba(255, 255, 255, 0.12) 50%,
+            transparent 70%
+        );
+        background-size: 250% 100%;
+        animation: identicon-shimmer 2.2s linear infinite;
+        pointer-events: none;
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Solar Mode — high-contrast field-visibility overrides.
+   ─────────────────────────────────────────────────────────────── */
+
+html.solar {
+    color-scheme: light;
+}
+
+html.solar body {
+    background-color: #ffffff;
+    color: #000000;
+    background-image: none;
+}
+
+html.solar .glass-card {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.15);
+}
+
+/* Text + chrome inversions — tied to the zinc/amber tokens already in
+   use across components. We override by parent selector to avoid a
+   class-by-class rewrite of the existing dark-default markup. */
+html.solar .text-zinc-100 { color: #000000; }
+html.solar .text-zinc-200 { color: #0a0a0a; }
+html.solar .text-zinc-300 { color: #18181b; }
+html.solar .text-zinc-400 { color: #3f3f46; }
+html.solar .text-zinc-500 { color: #52525b; }
+html.solar .text-zinc-600 { color: #71717a; }
+
+html.solar .bg-zinc-900\/40,
+html.solar .bg-zinc-900\/30,
+html.solar .bg-zinc-900\/50,
+html.solar .bg-zinc-900\/60 { background-color: rgba(0, 0, 0, 0.04); }
+html.solar .bg-zinc-800\/30,
+html.solar .bg-zinc-800\/60 { background-color: rgba(0, 0, 0, 0.06); }
+html.solar .bg-zinc-950 { background-color: #ffffff; }
+
+html.solar .border-zinc-700,
+html.solar .border-zinc-700\/40,
+html.solar .border-zinc-700\/60,
+html.solar .border-zinc-800,
+html.solar .border-zinc-800\/30,
+html.solar .border-zinc-800\/40,
+html.solar .border-zinc-800\/60 { border-color: rgba(0, 0, 0, 0.12); }
+
+html.solar .ring-zinc-800\/80 { --tw-ring-color: rgba(0, 0, 0, 0.18); }
+
+/* Amber accents pop harder against white. */
+html.solar .text-amber-200,
+html.solar .text-amber-300,
+html.solar .text-amber-400 { color: #b45309; }
+html.solar .bg-amber-500\/10 { background-color: rgba(245, 158, 11, 0.18); }
+html.solar .border-amber-500\/20,
+html.solar .border-amber-500\/30 { border-color: rgba(180, 83, 9, 0.45); }
+
+/* Code surfaces — keep raw JSON readable on white. */
+html.solar pre.hex,
+html.solar .hex { color: #18181b; }
+html.solar pre {
+    background-color: rgba(0, 0, 0, 0.05) !important;
+    color: #18181b !important;
+}
+
+/* Status pill / kbd chips. */
+html.solar .status-pill {
+    background-color: rgba(0, 0, 0, 0.06);
+    border-color: rgba(0, 0, 0, 0.15);
+    color: #3f3f46;
+}
+html.solar kbd {
+    background-color: #f4f4f5 !important;
+    border-color: rgba(0, 0, 0, 0.18) !important;
+    color: #18181b !important;
+}
+
+/* Theme-toggle glyph swap. */
+html.solar .obsidian-only { display: none; }
+html.solar .solar-only { display: inline !important; }
+
+/* Solar shimmer reads stronger on dark cards — soften it on white. */
+html.solar .identicon-frame::after {
+    background: linear-gradient(
+        115deg,
+        transparent 30%,
+        rgba(0, 0, 0, 0.06) 50%,
+        transparent 70%
+    );
+    background-size: 250% 100%;
+}
