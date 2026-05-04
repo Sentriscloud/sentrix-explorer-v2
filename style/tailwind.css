@@ -21,7 +21,10 @@
 
 html,
 body {
-    @apply bg-zinc-950 text-zinc-100 antialiased;
+    background-color: #09090b; /* zinc-950 */
+    color: #f4f4f5; /* zinc-100 */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "ss01", "cv11", "tnum";
 }
 
@@ -75,13 +78,24 @@ body {
 
     /* Status pill — small rounded chip used on the live feed badge. */
     .status-pill {
-        @apply rounded-full border border-zinc-700/60 bg-zinc-800/60 px-2.5 py-0.5
-               font-mono text-[10px] uppercase tracking-wider text-zinc-400;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        border-radius: 9999px;
+        border: 1px solid rgba(63, 63, 70, 0.6);
+        background-color: rgba(39, 39, 42, 0.6);
+        padding: 0.125rem 0.625rem;
+        font-family: ui-monospace, "JetBrains Mono", Menlo, Monaco, monospace;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #a1a1aa; /* zinc-400 */
     }
 
     /* Hex-mono — tabular-num font for chain hashes / heights. */
     .hex {
-        @apply font-mono text-zinc-400;
+        font-family: ui-monospace, "JetBrains Mono", Menlo, Monaco, monospace;
+        color: #a1a1aa; /* zinc-400 */
         letter-spacing: 0.01em;
     }
 

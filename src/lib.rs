@@ -6,6 +6,12 @@
 //! truth from wire to UI.
 
 #![forbid(unsafe_code)]
+// Leptos's `view!` macro generates massively-nested generic types as
+// it composes children; the default 128-depth limit overflows on
+// pages like the Dashboard that compose StatsPanel + LiveBlockFeed +
+// Mempool + ValidatorActivity in one tree. 512 is the empirically
+// observed safe ceiling.
+#![recursion_limit = "1024"]
 
 use leptos::prelude::*;
 use leptos_meta::{provide_meta_context, Meta, MetaTags, Stylesheet, Title};

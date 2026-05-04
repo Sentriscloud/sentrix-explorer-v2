@@ -13,15 +13,12 @@
 //! no consumer-side change.
 
 use leptos::prelude::*;
-use leptos::task::spawn_local;
 
-use crate::grpc::{
-    client::SentrixGrpcClient,
-    pb::{chain_event::Event as PbEvent, Block, EventFilter, Transaction},
-};
-use crate::GRPC_ENDPOINT;
+use crate::grpc::pb::{Block, Transaction};
 
+#[cfg(target_arch = "wasm32")]
 const MAX_FEED_LEN: usize = 25;
+#[cfg(target_arch = "wasm32")]
 const MAX_TX_INDEX: usize = 500;
 
 /// Plain-Rust shape used by the view layer. Decoupled from the proto
@@ -89,63 +86,80 @@ pub fn provide_block_feed() {
     let (tx_index, set_tx_index) = signal(Vec::<IndexedTx>::new());
     let (status, set_status) = signal::<&'static str>("connecting…");
 
-    spawn_local(async move {
-        let mut client = SentrixGrpcClient::new(GRPC_ENDPOINT);
-
-        match client
-            .subscribe_events(vec![EventFilter::BlockFinalized])
-            .await
-        {
-            Ok(mut stream) => {
-                set_status.set("live · streaming");
-                loop {
-                    match stream.message().await {
-                        Ok(Some(ev)) => {
-                            if let Some(PbEvent::BlockFinalized(bf)) = ev.event {
-                                if let Some(block) = bf.block.as_ref() {
-                                    push_block(set_blocks, BlockRow::from(block));
-                                    index_txs(set_tx_index, block);
+    // Producer is wasm-only — SSR pre-render mounts the components,
+    // signals stay empty, and the hydrated bundle picks up the live
+    // subscription. Calling `spawn_local` outside a LocalSet on the
+    // tokio multi-thread runtime panics, so we don't.
+    #[cfg(target_arch = "wasm32")]
+    {
+        use crate::grpc::{
+            client::SentrixGrpcClient,
+            pb::{chain_event::Event as PbEvent, EventFilter},
+        };
+        use crate::GRPC_ENDPOINT;
+        leptos::task::spawn_local(async move {
+            let mut client = SentrixGrpcClient::new(GRPC_ENDPOINT);
+            match client
+                .subscribe_events(vec![EventFilter::BlockFinalized])
+                .await
+            {
+                Ok(mut stream) => {
+                    set_status.set("live · streaming");
+                    loop {
+                        match stream.message().await {
+                            Ok(Some(ev)) => {
+                                if let Some(PbEvent::BlockFinalized(bf)) = ev.event {
+                                    if let Some(block) = bf.block.as_ref() {
+                                        push_block(set_blocks, BlockRow::from(block));
+                                        index_txs(set_tx_index, block);
+                                    }
                                 }
                             }
-                        }
-                        Ok(None) => {
-                            set_status.set("stream closed · retrying via poll");
-                            break;
-                        }
-                        Err(_) => {
-                            set_status.set("stream error · falling back to poll");
-                            break;
+                            Ok(None) => {
+                                set_status.set("stream closed · retrying via poll");
+                                break;
+                            }
+                            Err(_) => {
+                                set_status.set("stream error · falling back to poll");
+                                break;
+                            }
                         }
                     }
                 }
-            }
-            Err(s) if s.code() == tonic::Code::Unimplemented => {
-                set_status.set("polling · stream not yet on chain");
-            }
-            Err(_) => {
-                set_status.set("rpc error · falling back to poll");
-            }
-        }
-
-        let mut last_height: Option<u64> = None;
-        loop {
-            crate::util::sleep_ms(2_000).await;
-            match client.get_latest_block().await {
-                Ok(block) => {
-                    let row = BlockRow::from(&block);
-                    if Some(row.height) != last_height {
-                        last_height = Some(row.height);
-                        push_block(set_blocks, row);
-                        index_txs(set_tx_index, &block);
-                        set_status.set("live · polling");
-                    }
+                Err(s) if s.code() == tonic::Code::Unimplemented => {
+                    set_status.set("polling · stream not yet on chain");
                 }
                 Err(_) => {
-                    set_status.set("rpc error · retrying");
+                    set_status.set("rpc error · falling back to poll");
                 }
             }
-        }
-    });
+            let mut last_height: Option<u64> = None;
+            loop {
+                crate::util::sleep_ms(2_000).await;
+                match client.get_latest_block().await {
+                    Ok(block) => {
+                        let row = BlockRow::from(&block);
+                        if Some(row.height) != last_height {
+                            last_height = Some(row.height);
+                            push_block(set_blocks, row);
+                            index_txs(set_tx_index, &block);
+                            set_status.set("live · polling");
+                        }
+                    }
+                    Err(_) => {
+                        set_status.set("rpc error · retrying");
+                    }
+                }
+            }
+        });
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        // Bind set_blocks/set_tx_index/set_status so the SSR build
+        // doesn't lint them as unused.
+        let _ = (set_blocks, set_tx_index, set_status);
+    }
 
     provide_context(BlockFeedState {
         blocks,
@@ -154,6 +168,7 @@ pub fn provide_block_feed() {
     });
 }
 
+#[cfg(target_arch = "wasm32")]
 fn index_txs(set: WriteSignal<Vec<IndexedTx>>, block: &Block) {
     let block_height = block.index;
     let block_hash_hex = block
@@ -184,6 +199,7 @@ fn index_txs(set: WriteSignal<Vec<IndexedTx>>, block: &Block) {
     });
 }
 
+#[cfg(target_arch = "wasm32")]
 fn push_block(set_blocks: WriteSignal<Vec<BlockRow>>, row: BlockRow) {
     set_blocks.update(|list| {
         // Dedupe on hash — height alone collides during a brief fork.

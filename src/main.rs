@@ -4,6 +4,8 @@
 //! browser bundle compiles only the `#[cfg(target_arch = "wasm32")]`
 //! arm; native builds compile the SSR arm.
 
+#![recursion_limit = "1024"]
+
 #[cfg(feature = "ssr")]
 #[tokio::main]
 async fn main() {

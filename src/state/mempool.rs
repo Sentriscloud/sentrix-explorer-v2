@@ -6,14 +6,10 @@
 //! in automatically.
 
 use leptos::prelude::*;
-use leptos::task::spawn_local;
 
-use crate::grpc::{
-    client::SentrixGrpcClient,
-    pb::{chain_event::Event as PbEvent, EventFilter, Transaction},
-};
-use crate::GRPC_ENDPOINT;
+use crate::grpc::pb::Transaction;
 
+#[cfg(target_arch = "wasm32")]
 const MAX_PENDING: usize = 20;
 
 #[derive(Clone, Debug)]
@@ -64,40 +60,51 @@ pub fn provide_mempool() {
     let (pending, set_pending) = signal(Vec::<PendingTxRow>::new());
     let (status, set_status) = signal::<&'static str>("connecting…");
 
-    spawn_local(async move {
-        let mut client = SentrixGrpcClient::new(GRPC_ENDPOINT);
-
-        match client.subscribe_events(vec![EventFilter::PendingTx]).await {
-            Ok(mut stream) => {
-                set_status.set("live · streaming");
-                loop {
-                    match stream.message().await {
-                        Ok(Some(ev)) => {
-                            if let Some(PbEvent::PendingTx(p)) = ev.event {
-                                if let Some(tx) = p.tx.as_ref() {
-                                    push_pending(set_pending, PendingTxRow::from(tx));
+    #[cfg(target_arch = "wasm32")]
+    {
+        use crate::grpc::{
+            client::SentrixGrpcClient,
+            pb::{chain_event::Event as PbEvent, EventFilter},
+        };
+        use crate::GRPC_ENDPOINT;
+        leptos::task::spawn_local(async move {
+            let mut client = SentrixGrpcClient::new(GRPC_ENDPOINT);
+            match client.subscribe_events(vec![EventFilter::PendingTx]).await {
+                Ok(mut stream) => {
+                    set_status.set("live · streaming");
+                    loop {
+                        match stream.message().await {
+                            Ok(Some(ev)) => {
+                                if let Some(PbEvent::PendingTx(p)) = ev.event {
+                                    if let Some(tx) = p.tx.as_ref() {
+                                        push_pending(set_pending, PendingTxRow::from(tx));
+                                    }
                                 }
                             }
-                        }
-                        Ok(None) | Err(_) => {
-                            set_status.set("stream closed");
-                            break;
+                            Ok(None) | Err(_) => {
+                                set_status.set("stream closed");
+                                break;
+                            }
                         }
                     }
                 }
+                Err(s) if s.code() == tonic::Code::Unimplemented => {
+                    set_status.set("awaiting chain v0.3 stream");
+                }
+                Err(_) => {
+                    set_status.set("rpc error");
+                }
             }
-            Err(s) if s.code() == tonic::Code::Unimplemented => {
-                set_status.set("awaiting chain v0.3 stream");
-            }
-            Err(_) => {
-                set_status.set("rpc error");
-            }
-        }
-    });
+        });
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    let _ = (set_pending, set_status);
 
     provide_context(MempoolState { pending, status });
 }
 
+#[cfg(target_arch = "wasm32")]
 fn push_pending(set: WriteSignal<Vec<PendingTxRow>>, row: PendingTxRow) {
     set.update(|list| {
         if list.iter().any(|r| r.txid_hex == row.txid_hex) {
