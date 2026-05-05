@@ -17,7 +17,7 @@ pub fn Navbar() -> impl IntoView {
 
     let (badge_class, badge_text) = match network {
         Network::Mainnet => (
-            "border-sentrix-gold/30 bg-sentrix-gold/10 text-sentrix-gold",
+            "border-emerald-500/30 bg-emerald-500/10 text-emerald-500",
             "MAINNET",
         ),
         Network::Testnet => ("border-sky-400/30 bg-sky-400/10 text-sky-300", "TESTNET"),
@@ -38,23 +38,26 @@ pub fn Navbar() -> impl IntoView {
     // the bundle compiled for the *other* network. Same outcome as
     // setting `window.location.href` directly, but routed through
     // Leptos so SSR and CSR agree on the markup.
+    let _ = badge_class;
+    let _ = badge_text;
+
     view! {
-        <header class="sticky top-0 z-30 -mx-4 mb-8 border-b border-zinc-800/60 bg-zinc-950/95">
-        <div class="flex flex-wrap items-center justify-between gap-4 px-4 py-3">
+        <header class="sticky top-0 z-30 -mx-4 mb-8 border-b border-zinc-800/60 bg-zinc-950/85 backdrop-blur-md supports-[backdrop-filter]:bg-zinc-950/70">
+        <div class="flex items-center justify-between gap-3 px-4 py-3">
             <div class="flex items-center gap-6">
                 <a href=services.explorer class="flex items-center gap-3 group">
                     <BrandMark />
                     <div class="flex flex-col leading-tight">
-                        <span class="font-serif text-xl font-semibold tracking-tight text-zinc-100 transition-colors group-hover:text-sentrix-gold">
+                        <span class="font-serif text-xl font-semibold tracking-tight text-zinc-100 transition-colors group-hover:text-emerald-500">
                             "Sentrix"
                         </span>
-                        <span class="eyebrow text-zinc-500">
+                        <span class="hidden sm:block eyebrow text-zinc-500">
                             "Obsidian Engine · Rust + WASM"
                         </span>
                     </div>
                 </a>
 
-                <nav class="hidden items-center gap-1 text-sm md:flex">
+                <nav class="hidden items-center gap-1 text-sm lg:flex">
                     <NavTab href="/" label_key="nav.dashboard" />
                     <NavTab href="/assets" label_key="nav.assets" />
                     <NavTab href="/lab" label_key="nav.lab" />
@@ -62,9 +65,13 @@ pub fn Navbar() -> impl IntoView {
                 </nav>
             </div>
 
-            <nav class="flex flex-wrap items-center justify-end gap-2 text-sm">
+            // Desktop right-side actions (lg+). Mobile/tablet hides
+            // them — they live in the hamburger menu instead. The
+            // network selector ("Switch to Testnet") IS the network
+            // indicator; we dropped the standalone MAINNET badge as
+            // redundant with the toggle button.
+            <nav class="hidden items-center gap-2 text-sm lg:flex">
                 <ConnectionStatus />
-                <CommandHint />
                 <ExternalLink href=services.faucet label_key="nav.faucet" />
                 <ExternalLink href=services.wallet label_key="nav.wallet" />
                 <ExternalLink href=services.coinblast label_key="nav.coinblast" />
@@ -72,14 +79,10 @@ pub fn Navbar() -> impl IntoView {
                 <ThemeToggle />
                 <LanguageSwitcher />
 
-                <span class=format!(
-                    "rounded-md border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] {badge_class}"
-                )>{badge_text}</span>
-
                 <a
                     href=toggle_target
                     title=move || t(lang.get(), toggle_key)
-                    class="rounded-md border border-sentrix-gold/40 bg-sentrix-gold/10 px-3 py-1.5 text-xs font-semibold tracking-wide text-sentrix-gold transition hover:border-sentrix-gold/70 hover:bg-sentrix-gold/15"
+                    class="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold tracking-wide text-emerald-500 transition hover:border-emerald-500/70 hover:bg-emerald-500/15"
                 >
                     {move || t(lang.get(), toggle_key)}
                 </a>
@@ -88,7 +91,7 @@ pub fn Navbar() -> impl IntoView {
                     type="button"
                     aria-label="Toggle navigation"
                     on:click=move |_| nav_open.update(|o| *o = !*o)
-                    class="ml-1 inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/40 text-zinc-300 transition hover:border-sentrix-gold/40 hover:text-sentrix-gold md:hidden"
+                    class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/40 text-zinc-300 transition hover:border-emerald-500/40 hover:text-emerald-500 lg:hidden"
                 >
                     {move || if nav_open.get() {
                         view! {
@@ -108,16 +111,47 @@ pub fn Navbar() -> impl IntoView {
         </div>
 
         <Show when=move || nav_open.get() fallback=|| ()>
-            <div class="border-t border-zinc-800/60 px-4 py-3 md:hidden">
+            <div class="border-t border-zinc-800/60 px-4 py-3 lg:hidden">
                 <nav class="flex flex-col gap-1 text-sm">
                     <MobileNavLink href="/" label_key="nav.dashboard" close=nav_open />
                     <MobileNavLink href="/assets" label_key="nav.assets" close=nav_open />
                     <MobileNavLink href="/lab" label_key="nav.lab" close=nav_open />
                     <MobileNavLink href="/contracts" label_key="nav.contracts" close=nav_open />
+                    <div class="my-2 border-t border-zinc-800/60"></div>
+                    <MobileExternalLink href=services.faucet label_key="nav.faucet" close=nav_open />
+                    <MobileExternalLink href=services.wallet label_key="nav.wallet" close=nav_open />
+                    <MobileExternalLink href=services.coinblast label_key="nav.coinblast" close=nav_open />
+                    <a
+                        href=toggle_target
+                        on:click=move |_| nav_open.set(false)
+                        class="mt-2 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-center text-sm font-semibold tracking-wide text-emerald-500"
+                    >
+                        {move || t(lang.get(), toggle_key)}
+                    </a>
                 </nav>
             </div>
         </Show>
         </header>
+    }
+}
+
+#[component]
+fn MobileExternalLink(
+    href: &'static str,
+    label_key: &'static str,
+    close: RwSignal<bool>,
+) -> impl IntoView {
+    let lang = use_lang();
+    view! {
+        <a
+            href=href
+            target="_blank"
+            rel="noopener"
+            on:click=move |_| close.set(false)
+            class="rounded-md px-3 py-2 text-zinc-300 transition hover:bg-zinc-900/60 hover:text-emerald-500"
+        >
+            {move || t(lang.get(), label_key)}
+        </a>
     }
 }
 
@@ -132,7 +166,7 @@ fn MobileNavLink(
         <a
             href=href
             on:click=move |_| close.set(false)
-            class="rounded-md px-3 py-2 text-zinc-300 transition hover:bg-zinc-900/60 hover:text-sentrix-gold"
+            class="rounded-md px-3 py-2 text-zinc-300 transition hover:bg-zinc-900/60 hover:text-emerald-500"
         >
             {move || t(lang.get(), label_key)}
         </a>
@@ -160,7 +194,7 @@ fn ExternalLink(href: &'static str, label_key: &'static str) -> impl IntoView {
             href=href
             target="_blank"
             rel="noopener"
-            class="rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-1.5 text-zinc-300 transition hover:border-sentrix-gold/40 hover:text-sentrix-gold"
+            class="rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-1.5 text-zinc-300 transition hover:border-emerald-500/40 hover:text-emerald-500"
         >
             {move || t(lang.get(), label_key)}
         </a>
@@ -241,7 +275,7 @@ fn ThemeToggle() -> impl IntoView {
             type="button"
             on:click=on_click
             title="Toggle Obsidian / Solar"
-            class="rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-1.5 text-zinc-300 transition hover:border-sentrix-gold/40 hover:text-sentrix-gold"
+            class="rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-1.5 text-zinc-300 transition hover:border-emerald-500/40 hover:text-emerald-500"
         >
             // Sun + moon glyphs in one toggle. Solar shows sun-only,
             // Obsidian shows the crescent — the parent .solar class

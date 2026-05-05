@@ -83,7 +83,7 @@ fn FooterLink(href: &'static str, label: &'static str) -> impl IntoView {
             href=href
             target="_blank"
             rel="noopener"
-            class="block py-0.5 transition hover:text-sentrix-gold"
+            class="block py-0.5 transition hover:text-emerald-500"
         >
             {label}
         </a>
@@ -95,7 +95,7 @@ fn InternalLink(href: &'static str, label: &'static str) -> impl IntoView {
     view! {
         <a
             href=href
-            class="block py-0.5 transition hover:text-sentrix-gold"
+            class="block py-0.5 transition hover:text-emerald-500"
         >
             {label}
         </a>

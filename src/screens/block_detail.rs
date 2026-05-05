@@ -78,7 +78,7 @@ fn BlockHeading(height_str: String) -> impl IntoView {
             <div class="eyebrow text-zinc-500">
                 {move || t(lang.get(), "detail.block")}
             </div>
-            <h1 class="font-serif text-5xl font-bold tabular-nums tracking-tight text-sentrix-gold">
+            <h1 class="font-serif text-5xl font-bold tabular-nums tracking-tight text-emerald-500">
                 "#" {height_str}
             </h1>
         </header>

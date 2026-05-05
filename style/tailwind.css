@@ -12,13 +12,13 @@
 @source "../*.html";
 
 /* ─────────────────────────────────────────────────────────────────
-   Brand tokens — pulled from sentrix-labs/brand-kit/BRAND_GUIDE.md
-   surfaced as Tailwind colors via the v4 @theme directive.
+   Brand tokens — Tailwind's default emerald-500 (#10B981) is the
+   primary accent; amber stays reserved for testnet badges + warnings.
+   We don't override --color-emerald-* so default Tailwind palette
+   stays canonical (don't tint the primary brand value via a token).
    ─────────────────────────────────────────────────────────────── */
 @theme {
     --color-sentrix-black: #000000;
-    --color-sentrix-bronze: #8a5a11;
-    --color-sentrix-gold: #dbc17f;
     --color-sentrix-canvas: #0a0a0c;
 
     --font-mono:
@@ -335,14 +335,14 @@ html.solar .solar-only {
 .corner-lines::before {
     top: 6px;
     left: 6px;
-    border-top: 1px solid #dbc17f;
-    border-left: 1px solid #dbc17f;
+    border-top: 1px solid #10b981;
+    border-left: 1px solid #10b981;
 }
 .corner-lines::after {
     bottom: 6px;
     right: 6px;
-    border-bottom: 1px solid #dbc17f;
-    border-right: 1px solid #dbc17f;
+    border-bottom: 1px solid #10b981;
+    border-right: 1px solid #10b981;
 }
 .corner-lines:hover::before,
 .corner-lines:hover::after {

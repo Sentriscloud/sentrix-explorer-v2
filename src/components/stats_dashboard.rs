@@ -88,10 +88,12 @@ async fn fetch_chain_stats(network: Network) -> Result<ChainStats, FetchError> {
     })
 }
 
-/// Subset of fields the dashboard cares about. Backed by gRPC v0.4
-/// `GetValidatorSet` + `GetMempool` — no JSON / REST involvement.
-/// `Default` keeps the UI rendering zeros rather than blank cards if
-/// any single call fails.
+/// Subset of fields the dashboard cares about. REST-bridged for now;
+/// the pure-gRPC swap landed prematurely in #1 (chain v2.1.72 with
+/// `GetValidatorSet`/`GetSupply`/`GetMempool` is still in review at
+/// sentrix-labs/sentrix#472), so the gRPC calls 502'd the cards. Falls
+/// back to the existing `/sentrix_status_extended` endpoint until chain
+/// v2.1.72 ships to prod, then we flip back to gRPC in a clean PR.
 #[cfg(target_arch = "wasm32")]
 #[derive(Default)]
 struct SentrixStatusSubset {
@@ -101,28 +103,42 @@ struct SentrixStatusSubset {
 }
 
 #[cfg(target_arch = "wasm32")]
-async fn fetch_sentrix_status(_network: Network) -> Result<SentrixStatusSubset, FetchError> {
-    use crate::grpc::client::SentrixGrpcClient;
+async fn fetch_sentrix_status(network: Network) -> Result<SentrixStatusSubset, FetchError> {
+    use gloo_net::http::Request;
+    use serde_json::Value;
 
-    let mut client = SentrixGrpcClient::new(crate::GRPC_ENDPOINT);
+    let url = format!("{}/sentrix_status_extended", network.rpc_url());
+    let resp = Request::get(&url)
+        .send()
+        .await
+        .map_err(|e| FetchError::Rpc(format!("status: {e}")))?;
+    if !resp.ok() {
+        return Err(FetchError::Rpc(format!("status http {}", resp.status())));
+    }
+    let body: Value = resp
+        .json()
+        .await
+        .map_err(|e| FetchError::Rpc(format!("status decode: {e}")))?;
 
-    // Two parallel single-method round-trips beat one bigger query —
-    // each handler is a single `state.read()` snapshot on the chain
-    // side, contending for the same lock anyway. Sequential keeps
-    // futures::join macros out of the bundle.
-    let validators = client
-        .get_validator_set()
-        .await
-        .map_err(|s| FetchError::Rpc(format!("validator_set: {}", s.message())))?;
-    let mempool = client
-        .get_mempool(0)
-        .await
-        .map_err(|s| FetchError::Rpc(format!("mempool: {}", s.message())))?;
+    let active_validators = body
+        .pointer("/validators/active_count")
+        .and_then(Value::as_u64)
+        .map(|n| u32::try_from(n).unwrap_or(u32::MAX))
+        .unwrap_or(0);
+    let total_validators = body
+        .pointer("/validators/top")
+        .and_then(Value::as_array)
+        .map(|a| u32::try_from(a.len()).unwrap_or(u32::MAX))
+        .unwrap_or(0);
+    let mempool_pending = body
+        .pointer("/mempool/size")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
 
     Ok(SentrixStatusSubset {
-        active_validators: validators.active_count,
-        total_validators: validators.total_count,
-        mempool_pending: u64::from(mempool.size),
+        active_validators,
+        total_validators,
+        mempool_pending,
     })
 }
 
@@ -209,7 +225,78 @@ pub fn StatsDashboard() -> impl IntoView {
                     />
                 }.into_any(),
             }}
+            <SupplyBar />
         </section>
+    }
+}
+
+/// Compact minted/cap progress card. Lives directly under the 4-card
+/// stats grid (used to be the StatsPanel's job; that whole panel got
+/// dropped because most of its cards were redundant with the hero +
+/// the rest had stale "0.00s" data).
+#[component]
+fn SupplyBar() -> impl IntoView {
+    const TOTAL_SUPPLY_SRX: u64 = 315_000_000;
+    let minted_srx: RwSignal<u64> = RwSignal::new(0);
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        use gloo_net::http::Request;
+        use serde_json::Value;
+        leptos::task::spawn_local(async move {
+            // Same REST-bridge story as the validator/mempool fields —
+            // gRPC `GetSupply` lives in chain v2.1.72 (still in review)
+            // so we hit the existing JSON endpoint until that ships.
+            let net = crate::state::network::Network::from_host(
+                &web_sys::window()
+                    .and_then(|w| w.location().host().ok())
+                    .unwrap_or_default(),
+            );
+            let endpoint = format!("{}/sentrix_status_extended", net.rpc_url());
+            loop {
+                if let Ok(resp) = Request::get(&endpoint).send().await {
+                    if resp.ok() {
+                        if let Ok(body) = resp.json::<Value>().await {
+                            if let Some(v) = body
+                                .pointer("/supply/minted_sentri")
+                                .and_then(Value::as_u64)
+                            {
+                                minted_srx.set(v / 100_000_000);
+                            }
+                        }
+                    }
+                }
+                crate::util::sleep_ms(5_000).await;
+            }
+        });
+    }
+
+    view! {
+        <div class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-4">
+            <div class="flex items-center justify-between">
+                <span class="eyebrow text-zinc-500">"Minted · Cap"</span>
+                {move || {
+                    let m = minted_srx.get();
+                    let pct = (m * 100) / TOTAL_SUPPLY_SRX.max(1);
+                    view! {
+                        <span class="font-mono text-xs tabular-nums text-zinc-300">
+                            {format_int(m)} " / " {format_int(TOTAL_SUPPLY_SRX)} " SRX · "
+                            {pct.to_string()} "%"
+                        </span>
+                    }
+                }}
+            </div>
+            <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-zinc-800/60">
+                <div
+                    class="h-full rounded-full bg-emerald-500 transition-all duration-700"
+                    style=move || {
+                        let m = minted_srx.get();
+                        let pct = (m * 100) / TOTAL_SUPPLY_SRX.max(1);
+                        format!("width: {pct}%;")
+                    }
+                />
+            </div>
+        </div>
     }
 }
 
@@ -232,12 +319,12 @@ fn NetworkBadge() -> impl IntoView {
             <span class=move || {
                 let base = "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-medium tracking-wide";
                 match network.get() {
-                    Network::Mainnet => format!("{base} border-sentrix-gold/30 bg-sentrix-gold/10 text-sentrix-gold"),
+                    Network::Mainnet => format!("{base} border-emerald-500/30 bg-emerald-500/10 text-emerald-500"),
                     Network::Testnet => format!("{base} border-amber-400/30 bg-amber-400/10 text-amber-300"),
                 }
             }>
                 <span class=move || match network.get() {
-                    Network::Mainnet => "h-1.5 w-1.5 rounded-full bg-sentrix-gold",
+                    Network::Mainnet => "h-1.5 w-1.5 rounded-full bg-emerald-500",
                     Network::Testnet => "h-1.5 w-1.5 rounded-full bg-amber-400",
                 } />
                 {move || network.get().label()}
@@ -263,20 +350,20 @@ fn StatsGrid(stats: ChainStats) -> impl IntoView {
             // gold tabular-nums, eyebrow above, "Sentrix Mainnet · live"
             // strapline below to anchor the network identity.
             <article
-                class="corner-lines relative md:col-span-2 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 transition-colors hover:border-sentrix-bronze/40"
+                class="corner-lines relative md:col-span-2 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 transition-colors hover:border-emerald-700/40"
                 aria-label="Latest Block"
             >
                 <header class="flex items-center justify-between">
                     <span class="eyebrow text-zinc-500">"Latest Block"</span>
                     <IconSvg icon=Icon::Block />
                 </header>
-                <div class="mt-3 font-serif text-6xl font-bold tabular-nums tracking-tight text-sentrix-gold">
+                <div class="mt-3 font-serif text-6xl font-bold tabular-nums tracking-tight text-emerald-500">
                     "#" {block_height_fmt}
                 </div>
                 <div class="mt-3 flex items-center gap-2 text-[11px] text-zinc-500">
                     <span class="relative flex h-1.5 w-1.5">
-                        <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-sentrix-gold opacity-70"></span>
-                        <span class="relative inline-flex h-1.5 w-1.5 rounded-full bg-sentrix-gold"></span>
+                        <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-70"></span>
+                        <span class="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
                     </span>
                     <span class="font-mono uppercase tracking-[0.18em]">
                         {move || crate::config::Network::current().label()} " · live"
@@ -322,14 +409,14 @@ enum Icon {
 #[component]
 fn StatCard(label: &'static str, value: String, accent: bool, icon: Icon) -> impl IntoView {
     let value_class = if accent {
-        "mt-2 font-mono text-2xl font-bold tabular-nums text-sentrix-gold"
+        "mt-2 font-mono text-2xl font-bold tabular-nums text-emerald-500"
     } else {
         "mt-2 font-mono text-2xl font-bold tabular-nums text-zinc-100"
     };
 
     view! {
         <article
-            class="group corner-lines relative rounded-xl border border-zinc-800/60 bg-zinc-900/40 px-4 py-3.5 transition-colors hover:border-sentrix-bronze/40"
+            class="group corner-lines relative rounded-xl border border-zinc-800/60 bg-zinc-900/40 px-4 py-3.5 transition-colors hover:border-emerald-700/40"
             aria-label=label
         >
             <header class="flex items-center justify-between">
@@ -360,7 +447,7 @@ fn IconSvg(icon: Icon) -> impl IntoView {
         <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
-            class="h-4 w-4 text-zinc-600 transition-colors group-hover:text-sentrix-gold"
+            class="h-4 w-4 text-zinc-600 transition-colors group-hover:text-emerald-500"
             fill="none"
             stroke="currentColor"
             stroke-width="2"
