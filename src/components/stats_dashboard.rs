@@ -149,24 +149,6 @@ async fn fetch_sentrix_status(network: Network) -> Result<SentrixStatusSubset, F
     })
 }
 
-/// SSR-side fetcher — server pre-render returns zeros so we don't fan
-/// out external RPC from the prerender path. The hydrated bundle
-/// runs the real `fetch_chain_stats` above on the client and swaps
-/// the values in. Skeleton state on first paint matches the same
-/// "no data yet" semantics.
-#[cfg(not(target_arch = "wasm32"))]
-async fn fetch_chain_stats(network: Network) -> Result<ChainStats, FetchError> {
-    sleep_500ms().await;
-    Ok(ChainStats {
-        block_height: 0,
-        avg_block_time_ms: 0,
-        active_validators: 0,
-        total_validators: 0,
-        mempool_pending: 0,
-        network,
-    })
-}
-
 /// Two-point average — latest + (latest - 99) timestamps, divide by
 /// the gap. Defaults to 1200 ms (chain target) on any RPC failure
 /// or when there aren't enough blocks yet.
@@ -191,11 +173,6 @@ async fn compute_avg_block_time_ms<P: crate::api::evm::EvmProvider>(provider: &P
     u32::try_from(span_ms / 99).unwrap_or(FALLBACK_MS)
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-async fn sleep_500ms() {
-    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-}
-
 // ─────────────────────────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────────────────────────
@@ -204,37 +181,63 @@ async fn sleep_500ms() {
 pub fn StatsDashboard() -> impl IntoView {
     let network = use_network();
 
-    // `LocalResource` rather than `Resource`: the wasm sleep uses
-    // `JsFuture` which isn't `Send`, so the SSR-capable
-    // `Resource::new` rejects the fetcher. SSR pre-renders the
-    // skeleton; the hydrated bundle then runs the fetch and swaps
-    // in the numbers — same UX pattern as Etherscan/Solscan first
-    // paint. Switch to `Resource::new` once the real RPC fetcher
-    // is split into a Send-friendly server-side branch.
-    let stats = LocalResource::new(move || {
-        let net = network.get();
-        async move { fetch_chain_stats(net).await }
-    });
+    // We don't use `<Suspense>` here on purpose. Earlier attempts wrapped
+    // a `LocalResource` fetcher in Suspense — that registered a streaming
+    // chunk in the SSR HTML which never resolved on the server (LocalResource
+    // is wasm-only by design). The client hydrator then walked the DOM
+    // expecting streamed content, didn't find it, and panicked in
+    // `tachys::hydration::failed_to_cast_element` deep in the framework.
+    //
+    // Plain `RwSignal<State>` + `spawn_local` on the wasm path keeps SSR
+    // emitting only the skeleton (zero streaming chunks) and the client
+    // populates the real data after hydrate via signal update. Same UX,
+    // hydration-clean.
+    let state: RwSignal<StatsState> = RwSignal::new(StatsState::Loading);
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        Effect::new(move |_| {
+            let net = network.get();
+            state.set(StatsState::Loading);
+            leptos::task::spawn_local(async move {
+                let next = match fetch_chain_stats(net).await {
+                    Ok(s) => StatsState::Ready(s),
+                    Err(e) => StatsState::Error(e.to_string()),
+                };
+                state.set(next);
+            });
+        });
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    let _ = network;
 
     view! {
         <section class="space-y-4" aria-label="Network statistics">
             <NetworkBadge />
-
-            <Suspense fallback=|| view! { <SkeletonGrid /> }>
-                {move || Suspend::new(async move {
-                    match stats.await {
-                        Ok(s) => view! { <StatsGrid stats=s /> }.into_any(),
-                        Err(e) => view! {
-                            <ErrorState
-                                message=e.to_string()
-                                on_retry=move || stats.refetch()
-                            />
-                        }.into_any(),
-                    }
-                })}
-            </Suspense>
+            {move || match state.get() {
+                StatsState::Loading => view! { <SkeletonGrid /> }.into_any(),
+                StatsState::Ready(s) => view! { <StatsGrid stats=s /> }.into_any(),
+                StatsState::Error(msg) => view! {
+                    <ErrorState
+                        message=msg
+                        on_retry=move || state.set(StatsState::Loading)
+                    />
+                }.into_any(),
+            }}
         </section>
     }
+}
+
+// Ready/Error are only constructed on the wasm path (SSR sticks at Loading
+// forever — that's the desired skeleton-only render). Allow dead-code on the
+// SSR analyser pass.
+#[derive(Clone, Debug, PartialEq)]
+#[allow(dead_code)]
+enum StatsState {
+    Loading,
+    Ready(ChainStats),
+    Error(String),
 }
 
 #[component]

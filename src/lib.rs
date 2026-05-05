@@ -72,7 +72,6 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                 <MetaTags />
             </head>
             <body class="min-h-screen bg-zinc-950 text-zinc-100 transition-colors">
-                <components::testnet_banner::TestnetBanner />
                 <App />
             </body>
         </html>
@@ -127,6 +126,13 @@ pub fn App() -> impl IntoView {
         <Meta name="twitter:title" content=title />
         <Meta name="twitter:description" content=description />
         <Meta name="twitter:image" content="https://scan.sentriscloud.com/icon.svg" />
+
+        // Banner lives inside App so SSR + client agree on the body
+        // subtree. Putting it in shell() (SSR-only) confused the
+        // hydration walker — client App doesn't know the banner exists,
+        // so the placeholder it leaves on mainnet shows up as a stray
+        // node and tachys panics in failed_to_cast_element.
+        <components::testnet_banner::TestnetBanner />
 
         <Router>
             <main class="container mx-auto flex min-h-screen max-w-6xl flex-col px-4 py-8">
