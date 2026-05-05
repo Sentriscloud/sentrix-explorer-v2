@@ -122,7 +122,11 @@ pub fn Navbar() -> impl IntoView {
 }
 
 #[component]
-fn MobileNavLink(href: &'static str, label_key: &'static str, close: RwSignal<bool>) -> impl IntoView {
+fn MobileNavLink(
+    href: &'static str,
+    label_key: &'static str,
+    close: RwSignal<bool>,
+) -> impl IntoView {
     let lang = use_lang();
     view! {
         <a

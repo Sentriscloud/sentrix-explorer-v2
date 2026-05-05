@@ -320,12 +320,7 @@ enum Icon {
 }
 
 #[component]
-fn StatCard(
-    label: &'static str,
-    value: String,
-    accent: bool,
-    icon: Icon,
-) -> impl IntoView {
+fn StatCard(label: &'static str, value: String, accent: bool, icon: Icon) -> impl IntoView {
     let value_class = if accent {
         "mt-2 font-mono text-2xl font-bold tabular-nums text-sentrix-gold"
     } else {

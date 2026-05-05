@@ -292,7 +292,8 @@ fn format_unix_ts(ts: u64) -> String {
 
     let mut year: u64 = 1970;
     loop {
-        let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+        let leap =
+            (year.is_multiple_of(4) && !year.is_multiple_of(100)) || year.is_multiple_of(400);
         let year_days = if leap { 366 } else { 365 };
         if days < year_days {
             break;
@@ -301,7 +302,7 @@ fn format_unix_ts(ts: u64) -> String {
         year += 1;
     }
 
-    let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+    let leap = (year.is_multiple_of(4) && !year.is_multiple_of(100)) || year.is_multiple_of(400);
     let month_lengths = [
         31u64,
         if leap { 29 } else { 28 },
