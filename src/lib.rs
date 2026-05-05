@@ -26,6 +26,7 @@ pub mod config;
 pub mod context;
 pub mod grpc;
 pub mod i18n;
+pub mod labels;
 pub mod pwa;
 pub mod screens;
 pub mod state;

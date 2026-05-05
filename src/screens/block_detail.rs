@@ -16,6 +16,7 @@ use crate::components::identicon::Identicon;
 use crate::components::skeleton::Skeleton;
 use crate::grpc::pb::Transaction;
 use crate::i18n::{t, use_lang};
+use crate::labels::AddressLabel;
 
 #[component]
 pub fn BlockDetailScreen() -> impl IntoView {
@@ -138,7 +139,8 @@ fn BlockBody(block: crate::grpc::pb::Block) -> impl IntoView {
                     <div class="identicon-frame h-5 w-5 rounded">
                         <Identicon address_hex=proposer_seed size=20 />
                     </div>
-                    <span class="hex break-all text-xs">"0x" {proposer_hex}</span>
+                    <span class="hex break-all text-xs">"0x" {proposer_hex.clone()}</span>
+                    <AddressLabel addr=format!("0x{proposer_hex}") />
                 </div>
             </Field>
             <Field label_key="detail.transactions">
@@ -226,6 +228,8 @@ fn TxRow(tx: Transaction, index: usize) -> impl IntoView {
     let from_link = format!("/address/0x{from_hex}");
     let to_link = format!("/address/0x{to_hex}");
     let tx_link = format!("/tx/0x{txid_hex}");
+    let from_full = format!("0x{from_hex}");
+    let to_full = format!("0x{to_hex}");
 
     view! {
         <div class="flex items-center justify-between rounded-xl border border-zinc-800/30 bg-zinc-900/40 p-3 text-xs">
@@ -237,14 +241,16 @@ fn TxRow(tx: Transaction, index: usize) -> impl IntoView {
                     <a href=tx_link class="hex text-zinc-300 hover:text-amber-300">
                         {txid_short}
                     </a>
-                    <div class="flex items-center gap-1 text-[10px] text-zinc-500">
+                    <div class="flex flex-wrap items-center gap-1 text-[10px] text-zinc-500">
                         <a href=from_link class="font-mono hover:text-amber-300">
                             {from_short}
                         </a>
+                        <AddressLabel addr=from_full />
                         <span class="text-zinc-700">"→"</span>
                         <a href=to_link class="font-mono hover:text-amber-300">
                             {to_short}
                         </a>
+                        <AddressLabel addr=to_full />
                     </div>
                 </div>
             </div>

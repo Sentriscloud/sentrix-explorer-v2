@@ -22,6 +22,7 @@ use crate::components::contract_panels::{ContractReadPanel, LogsPanel};
 use crate::components::copy_cli::CopyCli;
 use crate::components::identicon::Identicon;
 use crate::i18n::{t, use_lang};
+use crate::labels::AddressLabel;
 
 #[component]
 pub fn AddressDetailScreen() -> impl IntoView {
@@ -39,9 +40,12 @@ pub fn AddressDetailScreen() -> impl IntoView {
                 <div class="identicon-frame h-12 w-12 rounded-lg ring-1 ring-zinc-800/80">
                     <Identicon address_hex=raw.clone() size=48 />
                 </div>
-                <div>
-                    <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                        {kind_label(&kind)}
+                <div class="min-w-0 flex-1">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+                            {kind_label(&kind)}
+                        </span>
+                        <AddressLabel addr=raw.clone() />
                     </div>
                     <h1 class="hex break-all text-lg font-bold text-zinc-100">{raw.clone()}</h1>
                 </div>
