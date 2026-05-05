@@ -39,8 +39,18 @@ pub const GRPC_ENDPOINT: &str = config::grpc_endpoint();
 
 /// CSS bundle version. Bump when tailwind.css shape changes — drives
 /// the `?v=N` query param on the `<Stylesheet>` href so CDN/edge
-/// caches don't pin a stale build.
+/// caches don't pin a stale build. The output-name itself bumps
+/// independently via Cargo.toml when the WASM ABI changes.
 const CSS_BUMP: u32 = 2;
+
+/// Bundle name baked at build time. Mirrors `output-name` from
+/// `[package.metadata.leptos]`. cargo-leptos sets `LEPTOS_OUTPUT_NAME`
+/// in the build env; falling back to a literal keeps `cargo check`
+/// outside the cargo-leptos pipeline still compiling.
+const OUTPUT_NAME: &str = match option_env!("LEPTOS_OUTPUT_NAME") {
+    Some(n) => n,
+    None => "sentrix-explorer-v2",
+};
 
 /// Document shell — only used by SSR; CSR mounts directly on `<body>`.
 pub fn shell(options: LeptosOptions) -> impl IntoView {
@@ -106,7 +116,7 @@ pub fn App() -> impl IntoView {
         // a CF API purge. Bump CSS_BUMP whenever the bundled CSS
         // shape changes. The HTML itself isn't long-cached by Caddy
         // so the new ?v= is picked up on the next page load.
-        <Stylesheet id="leptos" href=format!("/pkg/sentrix-explorer-v2.css?v={}", CSS_BUMP) />
+        <Stylesheet id="leptos" href=format!("/pkg/{}.css?v={}", OUTPUT_NAME, CSS_BUMP) />
         <Title text=title />
         <Meta name="description" content=description />
         <Meta property="og:type" content="website" />

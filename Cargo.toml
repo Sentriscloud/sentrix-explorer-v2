@@ -80,9 +80,15 @@ ssr = [
 ]
 
 [profile.release]
-codegen-units = 1
-lto = true
-opt-level = 'z'
+# This profile drives the SSR binary via cargo-leptos. SSR runs server-side
+# only — opt-level='z' + full LTO is overkill (binary size doesn't matter
+# server-side, link time was running 5+ min per release build). Thin LTO at
+# opt-level=3 cuts the link to ~30-60 sec without measurable runtime cost.
+# WASM stays fully optimised because wasm-release inherits + overrides each
+# of these for the browser-bound bundle.
+codegen-units = 16
+lto = "thin"
+opt-level = 3
 
 [package.metadata.leptos]
 # Bump the build-id suffix on every breaking JS/WASM ABI change. CF caches
