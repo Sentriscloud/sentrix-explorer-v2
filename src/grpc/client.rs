@@ -11,7 +11,8 @@ use tonic_web_wasm_client::Client as WebClient;
 
 use super::pb::{
     get_block_request::Selector, sentrix_client::SentrixClient, BlockHeight, EventFilter,
-    GetBalanceRequest, GetBlockRequest, StreamEventsRequest,
+    GetBalanceRequest, GetBlockRequest, GetMempoolRequest, GetSupplyRequest,
+    GetValidatorSetRequest, Mempool, StreamEventsRequest, Supply, ValidatorSet,
 };
 
 /// The concrete client type after we've wired the wasm transport.
@@ -64,6 +65,30 @@ impl SentrixGrpcClient {
             at_height: None,
         };
         let resp = self.inner.get_balance(req).await?;
+        Ok(resp.into_inner())
+    }
+
+    /// v0.4 — full active set + jail/active flags + per-validator stake.
+    pub async fn get_validator_set(&mut self) -> Result<ValidatorSet, tonic::Status> {
+        let req = GetValidatorSetRequest { at_height: None };
+        let resp = self.inner.get_validator_set(req).await?;
+        Ok(resp.into_inner())
+    }
+
+    /// v0.4 — minted/burned/circulating supply snapshot.
+    pub async fn get_supply(&mut self) -> Result<Supply, tonic::Status> {
+        let req = GetSupplyRequest { at_height: None };
+        let resp = self.inner.get_supply(req).await?;
+        Ok(resp.into_inner())
+    }
+
+    /// v0.4 — pending-tx size + capped header window. `limit = 0` ⇒
+    /// server default (100). Pass a smaller limit for the dashboard
+    /// header card (just need `size`); pass max 500 for the mempool
+    /// panel that lists actual entries.
+    pub async fn get_mempool(&mut self, limit: u32) -> Result<Mempool, tonic::Status> {
+        let req = GetMempoolRequest { limit };
+        let resp = self.inner.get_mempool(req).await?;
         Ok(resp.into_inner())
     }
 
