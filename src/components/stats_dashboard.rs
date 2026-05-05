@@ -19,7 +19,11 @@ pub struct ChainStats {
     pub avg_block_time_ms: u32,
     pub active_validators: u32,
     pub total_validators: u32,
-    pub total_transactions: u64,
+    /// Live pending-tx depth from `/sentrix_status_extended.mempool.size`.
+    /// We don't surface a cumulative tx total — chain RPC has no cheap
+    /// query for that (would need a full-chain scan or external indexer).
+    /// Pending-tx is honest and live; the card label reflects that.
+    pub mempool_pending: u64,
     pub network: Network,
 }
 
@@ -41,27 +45,25 @@ impl std::error::Error for FetchError {}
 /// Real chain-stats fetcher (wasm path) with SSR mock fallback.
 ///
 /// ## Wired today
-///   - `block_height`      → `eth_blockNumber` against `network.rpc_url()`
+///   - `block_height`      → `eth_blockNumber`
 ///   - `avg_block_time_ms` → mean delta from latest + (latest - 99)
 ///     timestamps via two `eth_getBlockByNumber` calls
+///   - `active_validators` / `total_validators` → REST
+///     `/sentrix_status_extended` (validators.active_count and
+///     validators.top.len() respectively — top is capped at 7 by
+///     stake-rank, accurate as long as registered ≤ 7)
+///   - `mempool_pending` → REST `/sentrix_status_extended.mempool.size`
 ///
-/// ## Still mock (require new endpoints)
-///   - `active_validators` / `total_validators` → needs native gRPC
-///     `Sentrix.GetValidatorSet` (proto v0.3) or a curated registry
-///   - `total_transactions` → no direct RPC; needs indexer aggregation
-///
-/// The two mock fields keep stable values so the UI doesn't pulse;
-/// flip them as endpoints land.
+/// All four hits go to `network.rpc_url()`; sequential, no procmacro
+/// dep. Cumulative tx total is intentionally omitted — chain has no
+/// cheap query and a card showing "Pending Tx" is more honest than a
+/// stale "Total Transactions" backed by a full-chain scan cache.
 #[cfg(target_arch = "wasm32")]
 async fn fetch_chain_stats(network: Network) -> Result<ChainStats, FetchError> {
     use crate::api::evm::{EvmProvider, HttpEvmProvider};
 
     let provider = HttpEvmProvider::new(network.rpc_url());
 
-    // Sequential rather than `futures::join!` — adding the macro pulls
-    // a procmacro re-export and the three hits add maybe 200 ms over
-    // a parallel version. Worth revisiting if/when the real
-    // validator + indexer endpoints push us to 5+ hits.
     let block_height = provider
         .block_number()
         .await
@@ -69,35 +71,98 @@ async fn fetch_chain_stats(network: Network) -> Result<ChainStats, FetchError> {
 
     let avg_block_time_ms = compute_avg_block_time_ms(&provider, block_height).await;
 
+    // Validator counts + mempool depth come from the chain's
+    // operator-dashboard endpoint. Single round-trip covers three
+    // fields that EVM JSON-RPC can't express. Failure here doesn't
+    // tank the whole fetch — fall back to safe zeros so the height
+    // and block-time cards still render.
+    let extended = fetch_sentrix_status(network).await.unwrap_or_default();
+
     Ok(ChainStats {
         block_height,
         avg_block_time_ms,
-        // TODO: replace with `Sentrix.GetValidatorSet` once chain
-        // proto v0.3 lands.
-        active_validators: 21,
-        total_validators: 25,
-        // TODO: cumulative tx count — needs an indexer aggregation
-        // endpoint; chain RPC doesn't expose a direct query.
-        total_transactions: match network {
-            Network::Mainnet => 12_847_392,
-            Network::Testnet => 2_103_847,
-        },
+        active_validators: extended.active_validators,
+        total_validators: extended.total_validators,
+        mempool_pending: extended.mempool_pending,
         network,
     })
 }
 
-/// SSR-side fetcher — server pre-render returns mock so we don't fan
+/// Subset of `/sentrix_status_extended` the dashboard cares about.
+/// `Default` returns zero-valued fields so a partial-failure path can
+/// keep rendering the JSON-RPC-backed cards without short-circuiting.
+#[cfg(target_arch = "wasm32")]
+#[derive(Default)]
+struct SentrixStatusSubset {
+    active_validators: u32,
+    total_validators: u32,
+    mempool_pending: u64,
+}
+
+#[cfg(target_arch = "wasm32")]
+async fn fetch_sentrix_status(network: Network) -> Result<SentrixStatusSubset, FetchError> {
+    use gloo_net::http::Request;
+    use serde_json::Value;
+
+    let url = format!("{}/sentrix_status_extended", network.rpc_url());
+    let resp = Request::get(&url)
+        .send()
+        .await
+        .map_err(|e| FetchError::Rpc(format!("status: {e}")))?;
+    if !resp.ok() {
+        return Err(FetchError::Rpc(format!("status http {}", resp.status())));
+    }
+    let body: Value = resp
+        .json()
+        .await
+        .map_err(|e| FetchError::Rpc(format!("status decode: {e}")))?;
+
+    // Pull fields defensively — every one of these has a chain-side
+    // type guarantee, but a future field rename shouldn't crash the
+    // dashboard. Missing field == 0; UI shows "0 / 0" which is
+    // recognisable as "endpoint changed shape" without a panic.
+    let active_validators = body
+        .pointer("/validators/active_count")
+        .and_then(Value::as_u64)
+        .map(|n| u32::try_from(n).unwrap_or(u32::MAX))
+        .unwrap_or(0);
+
+    // `top` is capped at 7 by stake-rank server-side; for mainnet's
+    // current 4-validator set this equals the registered count. Once
+    // external validators push registered > 7, swap to a dedicated
+    // count field on the endpoint or a /staking/validators call.
+    let total_validators = body
+        .pointer("/validators/top")
+        .and_then(Value::as_array)
+        .map(|a| u32::try_from(a.len()).unwrap_or(u32::MAX))
+        .unwrap_or(0);
+
+    let mempool_pending = body
+        .pointer("/mempool/size")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+
+    Ok(SentrixStatusSubset {
+        active_validators,
+        total_validators,
+        mempool_pending,
+    })
+}
+
+/// SSR-side fetcher — server pre-render returns zeros so we don't fan
 /// out external RPC from the prerender path. The hydrated bundle
-/// runs the real `fetch_chain_stats` above on the client.
+/// runs the real `fetch_chain_stats` above on the client and swaps
+/// the values in. Skeleton state on first paint matches the same
+/// "no data yet" semantics.
 #[cfg(not(target_arch = "wasm32"))]
 async fn fetch_chain_stats(network: Network) -> Result<ChainStats, FetchError> {
     sleep_500ms().await;
     Ok(ChainStats {
         block_height: 0,
         avg_block_time_ms: 0,
-        active_validators: 21,
-        total_validators: 25,
-        total_transactions: 0,
+        active_validators: 0,
+        total_validators: 0,
+        mempool_pending: 0,
         network,
     })
 }
@@ -223,9 +288,9 @@ fn StatsGrid(stats: ChainStats) -> impl IntoView {
                 icon=Icon::Validators
             />
             <StatCard
-                label="Total Transactions"
-                value=format_int(stats.total_transactions)
-                trend=Trend::Up
+                label="Pending Tx"
+                value=format_int(stats.mempool_pending)
+                trend=Trend::None
                 icon=Icon::Transactions
             />
         </div>

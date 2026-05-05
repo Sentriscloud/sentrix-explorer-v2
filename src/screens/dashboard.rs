@@ -10,10 +10,11 @@ use crate::components::validator_activity::ValidatorActivity;
 pub fn Dashboard() -> impl IntoView {
     view! {
         <div class="space-y-6">
-            // New 4-card network stats grid (Etherscan/Solscan-style).
-            // Mock data behind a Resource → loading skeleton on first
-            // paint; TODOs in stats_dashboard::fetch_chain_stats for
-            // the real RPC composition.
+            // 4-card network stats grid (Etherscan/Solscan-style).
+            // Live data: block height + avg block time via EVM
+            // JSON-RPC, validators + mempool depth via REST
+            // /sentrix_status_extended. Skeleton on first paint;
+            // hydrated bundle does the fetch.
             <StatsDashboard />
 
             // Existing real-time panel — TPS sparkline, finality,
