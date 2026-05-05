@@ -17,7 +17,11 @@
 set -euo pipefail
 
 DEST_HOST="${DEST_HOST:-217.15.163.71}"
-DEST_USER="${DEST_USER:-root}"
+# Production runs the explorer under a non-privileged service user; ssh
+# as that user so rsync preserves the file ownership systemd expects.
+# Per-instance restart needs root via sudo (see `restart()` below) — the
+# operator's NOPASSWD sudoers entry makes that interactive-free.
+DEST_USER="${DEST_USER:-sentriscloud}"
 DEST_ROOT="${DEST_ROOT:-/var/www/sentrix-explorer}"
 
 build_for() {
@@ -48,7 +52,7 @@ ship() {
 restart() {
     local network="$1"
     echo "── restarting sentrix-explorer@$network ─────────────"
-    ssh "$DEST_USER@$DEST_HOST" "systemctl restart sentrix-explorer@$network"
+    ssh "$DEST_USER@$DEST_HOST" "sudo systemctl restart sentrix-explorer@$network"
 }
 
 main() {
