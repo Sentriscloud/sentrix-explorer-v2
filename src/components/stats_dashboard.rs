@@ -276,34 +276,60 @@ fn NetworkBadge() -> impl IntoView {
 fn StatsGrid(stats: ChainStats) -> impl IntoView {
     let block_time = format!("{:.1}s", f64::from(stats.avg_block_time_ms) / 1000.0);
     let validators = format!("{} / {}", stats.active_validators, stats.total_validators);
+    let block_height_fmt = format_int(stats.block_height);
     let _ = stats.network;
 
     view! {
-        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
-            <StatCard
-                label="Latest Block"
-                value=format_int(stats.block_height)
-                accent=true
-                icon=Icon::Block
-            />
-            <StatCard
-                label="Avg Block Time"
-                value=block_time
-                accent=false
-                icon=Icon::Clock
-            />
-            <StatCard
-                label="Active Validators"
-                value=validators
-                accent=false
-                icon=Icon::Validators
-            />
-            <StatCard
-                label="Pending Tx"
-                value=format_int(stats.mempool_pending)
-                accent=false
-                icon=Icon::Transactions
-            />
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
+            // Hero: latest block, full-width on mobile, 2/3 wide on desktop.
+            // The high-signal number gets editorial treatment — text-5xl
+            // gold tabular-nums, eyebrow above, "Sentrix Mainnet · live"
+            // strapline below to anchor the network identity.
+            <article
+                class="corner-lines relative md:col-span-2 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 transition-colors hover:border-sentrix-bronze/40"
+                aria-label="Latest Block"
+            >
+                <header class="flex items-center justify-between">
+                    <span class="eyebrow text-zinc-500">"Latest Block"</span>
+                    <IconSvg icon=Icon::Block />
+                </header>
+                <div class="mt-3 font-mono text-5xl font-bold tabular-nums tracking-tight text-sentrix-gold">
+                    "#" {block_height_fmt}
+                </div>
+                <div class="mt-3 flex items-center gap-2 text-[11px] text-zinc-500">
+                    <span class="relative flex h-1.5 w-1.5">
+                        <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-sentrix-gold opacity-70"></span>
+                        <span class="relative inline-flex h-1.5 w-1.5 rounded-full bg-sentrix-gold"></span>
+                    </span>
+                    <span class="font-mono uppercase tracking-[0.18em]">
+                        {move || crate::config::Network::current().label()} " · live"
+                    </span>
+                </div>
+            </article>
+
+            // Three compact companion cards alongside the hero. Auto rows
+            // so each card sizes to its content instead of stretching to
+            // 1/3 of the hero height.
+            <div class="flex flex-col gap-3 md:col-span-1">
+                <StatCard
+                    label="Avg Block Time"
+                    value=block_time
+                    accent=false
+                    icon=Icon::Clock
+                />
+                <StatCard
+                    label="Active Validators"
+                    value=validators
+                    accent=false
+                    icon=Icon::Validators
+                />
+                <StatCard
+                    label="Pending Tx"
+                    value=format_int(stats.mempool_pending)
+                    accent=false
+                    icon=Icon::Transactions
+                />
+            </div>
         </div>
     }
 }
@@ -324,14 +350,14 @@ fn StatCard(
     icon: Icon,
 ) -> impl IntoView {
     let value_class = if accent {
-        "mt-2.5 font-mono text-3xl font-bold tabular-nums text-sentrix-gold"
+        "mt-2 font-mono text-2xl font-bold tabular-nums text-sentrix-gold"
     } else {
-        "mt-2.5 font-mono text-3xl font-bold tabular-nums text-zinc-100"
+        "mt-2 font-mono text-2xl font-bold tabular-nums text-zinc-100"
     };
 
     view! {
         <article
-            class="group corner-lines relative rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-5 transition-colors hover:border-sentrix-bronze/40"
+            class="group corner-lines relative rounded-xl border border-zinc-800/60 bg-zinc-900/40 px-4 py-3.5 transition-colors hover:border-sentrix-bronze/40"
             aria-label=label
         >
             <header class="flex items-center justify-between">
@@ -379,11 +405,18 @@ fn IconSvg(icon: Icon) -> impl IntoView {
 fn SkeletonGrid() -> impl IntoView {
     view! {
         <div
-            class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4"
+            class="grid grid-cols-1 gap-3 md:grid-cols-3"
             role="status"
             aria-label="Loading statistics"
         >
-            {(0..4).map(|_| view! { <SkeletonCard /> }).collect_view()}
+            <div class="md:col-span-2 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6">
+                <div class="skeleton-shimmer h-3 w-24 rounded bg-zinc-800" />
+                <div class="skeleton-shimmer mt-4 h-12 w-56 rounded bg-zinc-800" />
+                <div class="skeleton-shimmer mt-3 h-3 w-32 rounded bg-zinc-800" />
+            </div>
+            <div class="grid grid-cols-1 gap-3 md:grid-rows-3">
+                {(0..3).map(|_| view! { <SkeletonCard /> }).collect_view()}
+            </div>
         </div>
     }
 }
