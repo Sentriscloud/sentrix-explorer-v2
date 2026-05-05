@@ -85,7 +85,13 @@ lto = true
 opt-level = 'z'
 
 [package.metadata.leptos]
-output-name = "sentrix-explorer-v2"
+# Bump the build-id suffix on every breaking JS/WASM ABI change. CF caches
+# the JS shim aggressively (4h browser-cache TTL on text/javascript) while
+# WASM only sticks around max-age=600 — when the two go out of sync mid-cache
+# the browser hits "Import #N: function import requires a callable" because
+# wasm-bindgen hashes `__wbg_*` symbols off the Rust source. Renaming the
+# output forces both files into a fresh URL, dodging the version skew.
+output-name = "sentrix-explorer-v2-r1"
 site-root = "target/site"
 site-pkg-dir = "pkg"
 assets-dir = "public"

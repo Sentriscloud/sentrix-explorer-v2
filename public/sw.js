@@ -8,7 +8,7 @@
 //
 // Bumping CACHE_VERSION invalidates all old caches on next activate.
 
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const STATIC_CACHE = `sentrix-explorer-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `sentrix-explorer-runtime-${CACHE_VERSION}`;
 
