@@ -22,7 +22,7 @@ pub fn LiveBlockFeed() -> impl IntoView {
             <header class="mb-5 flex items-center justify-between">
                 <div>
                     <div class="eyebrow text-zinc-500">"Network · Live"</div>
-                    <h2 class="mt-1 font-mono text-lg font-bold tracking-tight text-zinc-100">
+                    <h2 class="mt-1 font-serif text-2xl font-bold tracking-tight text-zinc-100">
                         {move || t(lang.get(), "feed.latest_blocks")}
                     </h2>
                 </div>

@@ -29,20 +29,26 @@ pub fn Navbar() -> impl IntoView {
         Network::Testnet => "nav.switch_to_mainnet",
     };
 
+    // Mobile hamburger toggles a slide-down panel of the same nav
+    // links. Toggle signal lives on the client; SSR pre-renders the
+    // panel hidden so hydration sees the same DOM either way.
+    let nav_open = RwSignal::new(false);
+
     // Cross-subdomain navigation — flushes browser memory + rehydrates
     // the bundle compiled for the *other* network. Same outcome as
     // setting `window.location.href` directly, but routed through
     // Leptos so SSR and CSR agree on the markup.
     view! {
-        <header class="sticky top-0 z-30 -mx-4 mb-8 flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800/60 bg-zinc-950/95 px-4 py-3">
+        <header class="sticky top-0 z-30 -mx-4 mb-8 border-b border-zinc-800/60 bg-zinc-950/95">
+        <div class="flex flex-wrap items-center justify-between gap-4 px-4 py-3">
             <div class="flex items-center gap-6">
-                <a href=services.explorer class="flex items-center gap-3">
+                <a href=services.explorer class="flex items-center gap-3 group">
                     <BrandMark />
                     <div class="flex flex-col leading-tight">
-                        <span class="text-sm font-semibold tracking-wide text-zinc-100">
-                            "SENTRIX EXPLORER"
+                        <span class="font-serif text-xl font-semibold tracking-tight text-zinc-100 transition-colors group-hover:text-sentrix-gold">
+                            "Sentrix"
                         </span>
-                        <span class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+                        <span class="eyebrow text-zinc-500">
                             "Obsidian Engine · Rust + WASM"
                         </span>
                     </div>
@@ -77,8 +83,55 @@ pub fn Navbar() -> impl IntoView {
                 >
                     {move || t(lang.get(), toggle_key)}
                 </a>
+
+                <button
+                    type="button"
+                    aria-label="Toggle navigation"
+                    on:click=move |_| nav_open.update(|o| *o = !*o)
+                    class="ml-1 inline-flex h-9 w-9 items-center justify-center rounded-md border border-zinc-800 bg-zinc-900/40 text-zinc-300 transition hover:border-sentrix-gold/40 hover:text-sentrix-gold md:hidden"
+                >
+                    {move || if nav_open.get() {
+                        view! {
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M18 6L6 18M6 6l12 12" />
+                            </svg>
+                        }.into_any()
+                    } else {
+                        view! {
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 6h18M3 12h18M3 18h18" />
+                            </svg>
+                        }.into_any()
+                    }}
+                </button>
             </nav>
+        </div>
+
+        <Show when=move || nav_open.get() fallback=|| ()>
+            <div class="border-t border-zinc-800/60 px-4 py-3 md:hidden">
+                <nav class="flex flex-col gap-1 text-sm">
+                    <MobileNavLink href="/" label_key="nav.dashboard" close=nav_open />
+                    <MobileNavLink href="/assets" label_key="nav.assets" close=nav_open />
+                    <MobileNavLink href="/lab" label_key="nav.lab" close=nav_open />
+                    <MobileNavLink href="/contracts" label_key="nav.contracts" close=nav_open />
+                </nav>
+            </div>
+        </Show>
         </header>
+    }
+}
+
+#[component]
+fn MobileNavLink(href: &'static str, label_key: &'static str, close: RwSignal<bool>) -> impl IntoView {
+    let lang = use_lang();
+    view! {
+        <a
+            href=href
+            on:click=move |_| close.set(false)
+            class="rounded-md px-3 py-2 text-zinc-300 transition hover:bg-zinc-900/60 hover:text-sentrix-gold"
+        >
+            {move || t(lang.get(), label_key)}
+        </a>
     }
 }
 

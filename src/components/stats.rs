@@ -125,29 +125,67 @@ fn Stat(label: &'static str, value: Signal<String>) -> impl IntoView {
 
 #[component]
 fn SupplyBar() -> impl IntoView {
-    // Genesis premine = 63 M of 315 M cap → 20 % minted, 80 % subsidy
-    // emission still ahead of the chain. Hardcoded against the audited
-    // tokenomics constants because the indexer doesn't surface a
-    // canonical "minted" total yet; swap the math to a live signal once
-    // `bc.total_minted` is exposed via REST.
-    let minted: u64 = 63_000_000;
-    let cap: u64 = TOTAL_SUPPLY_SRX;
-    let pct = (minted * 100) / cap.max(1);
-    let pct_str = format!("{}%", pct);
-    let bar_width = format!("width: {}%;", pct);
+    // Live-polled minted total. /sentrix_status_extended.supply
+    // .minted_sentri is the chain's authoritative number — circulating
+    // grows every block as the subsidy mints. 5 s poll matches the
+    // panel's other slow signals (gas history, total supply); the
+    // headline 1 s poll lives on StatsDashboard.
+    let minted_srx: RwSignal<u64> = RwSignal::new(0);
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        leptos::task::spawn_local(async move {
+            let endpoint = format!(
+                "{}/sentrix_status_extended",
+                crate::state::network::Network::from_host(
+                    &web_sys::window()
+                        .and_then(|w| w.location().host().ok())
+                        .unwrap_or_default()
+                )
+                .rpc_url()
+            );
+            loop {
+                if let Ok(resp) = gloo_net::http::Request::get(&endpoint).send().await {
+                    if resp.ok() {
+                        if let Ok(body) = resp.json::<serde_json::Value>().await {
+                            if let Some(v) = body
+                                .pointer("/supply/minted_sentri")
+                                .and_then(serde_json::Value::as_u64)
+                            {
+                                minted_srx.set(v / 100_000_000);
+                            }
+                        }
+                    }
+                }
+                crate::util::sleep_ms(5_000).await;
+            }
+        });
+    }
+
+    let cap = TOTAL_SUPPLY_SRX;
 
     view! {
         <div class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-4">
             <div class="flex items-center justify-between">
                 <span class="eyebrow text-zinc-500">"Minted · Cap"</span>
-                <span class="font-mono text-xs text-zinc-300">
-                    {fmt_int(minted)} " / " {fmt_int(cap)} " SRX · " {pct_str}
-                </span>
+                {move || {
+                    let m = minted_srx.get();
+                    let pct = (m * 100) / cap.max(1);
+                    view! {
+                        <span class="font-mono text-xs tabular-nums text-zinc-300">
+                            {fmt_int(m)} " / " {fmt_int(cap)} " SRX · " {pct.to_string()} "%"
+                        </span>
+                    }
+                }}
             </div>
             <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-zinc-800/60">
                 <div
                     class="h-full rounded-full bg-sentrix-gold transition-all duration-700"
-                    style=bar_width
+                    style=move || {
+                        let m = minted_srx.get();
+                        let pct = (m * 100) / cap.max(1);
+                        format!("width: {pct}%;")
+                    }
                 />
             </div>
         </div>

@@ -61,6 +61,8 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                 <meta charset="utf-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
                 <meta name="theme-color" content="#0A0A0C" />
+                <link rel="preconnect" href="https://fonts.googleapis.com" />
+                <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
                 <link rel="manifest" href="/manifest.json" />
                 <link rel="icon" type="image/svg+xml" href="/icon.svg" />
                 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />

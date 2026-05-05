@@ -48,7 +48,7 @@ pub fn ValidatorActivity() -> impl IntoView {
             <header class="mb-4 flex items-center justify-between">
                 <div>
                     <div class="eyebrow text-zinc-500">"BFT · Producers"</div>
-                    <h3 class="mt-1 font-mono text-base font-bold tracking-tight text-zinc-100">
+                    <h3 class="mt-1 font-serif text-xl font-bold tracking-tight text-zinc-100">
                         "Validator activity"
                     </h3>
                 </div>

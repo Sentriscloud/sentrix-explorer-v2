@@ -5,7 +5,6 @@
 use leptos::prelude::*;
 
 use crate::components::identicon::Identicon;
-use crate::components::skeleton::SkeletonRow;
 use crate::i18n::{t, use_lang};
 use crate::state::mempool::{MempoolState, PendingTxRow};
 
@@ -19,7 +18,7 @@ pub fn MempoolWatcher() -> impl IntoView {
             <header class="mb-4 flex items-center justify-between">
                 <div>
                     <div class="eyebrow text-zinc-500">"Mempool · Pending"</div>
-                    <h2 class="mt-1 font-mono text-lg font-bold tracking-tight text-zinc-100">
+                    <h2 class="mt-1 font-serif text-2xl font-bold tracking-tight text-zinc-100">
                         {move || t(lang.get(), "mempool.pending")}
                     </h2>
                 </div>
@@ -79,13 +78,17 @@ fn PendingTile(row: PendingTxRow) -> impl IntoView {
 
 #[component]
 fn PendingEmpty() -> impl IntoView {
-    let lang = use_lang();
+    // No skeleton spinner here. The mempool legitimately stays empty
+    // when chain traffic is light, and a permanent shimmer reads as
+    // "broken" instead of "idle". Editorial copy beats fake activity.
     view! {
-        <div class="space-y-2">
-            <SkeletonRow />
-            <SkeletonRow />
-            <div class="connecting-pulse pt-2 text-center text-xs text-zinc-500">
-                {move || t(lang.get(), "mempool.empty")}
+        <div class="flex flex-col items-center justify-center gap-3 py-10 text-center">
+            <div class="font-serif text-4xl font-bold tabular-nums text-zinc-700">"0"</div>
+            <div class="space-y-1">
+                <div class="eyebrow text-zinc-500">"Mempool · Idle"</div>
+                <p class="max-w-xs text-xs text-zinc-500">
+                    "Tidak ada transaksi yang menunggu. Saat traffic naik, transaksi muncul di sini sebelum di-finalize."
+                </p>
             </div>
         </div>
     }

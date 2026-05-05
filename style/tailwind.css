@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Editorial serif — Playfair Display for hero / brand-mark moments.
+   Loaded via Google Fonts CDN; preconnect set in HTML <head>. */
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;700;900&display=swap");
+
 /* Tailwind v4 — content paths declared via @source. The CLI scans
    these for class usage; without them only the literal CSS in this
    file ships, which is what made the v3-config-format build look
@@ -19,6 +23,17 @@
 
     --font-mono:
         ui-monospace, "JetBrains Mono", "Geist Mono", Menlo, Monaco, monospace;
+    --font-serif:
+        "Playfair Display", "DM Serif Display", Georgia, "Times New Roman",
+        serif;
+}
+
+/* Serif utility — editorial heading moments only. Numerals stay
+   tabular via font-variant-numeric so block heights don't reflow
+   while ticking. */
+.font-serif {
+    font-family: var(--font-serif);
+    font-variant-numeric: tabular-nums;
 }
 
 /* ─────────────────────────────────────────────────────────────────

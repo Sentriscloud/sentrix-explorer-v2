@@ -75,10 +75,12 @@ fn BlockHeading(height_str: String) -> impl IntoView {
     let lang = use_lang();
     view! {
         <header>
-            <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+            <div class="eyebrow text-zinc-500">
                 {move || t(lang.get(), "detail.block")}
             </div>
-            <h1 class="font-mono text-3xl font-bold text-zinc-100">"#" {height_str}</h1>
+            <h1 class="font-serif text-5xl font-bold tabular-nums tracking-tight text-sentrix-gold">
+                "#" {height_str}
+            </h1>
         </header>
     }
 }
@@ -147,7 +149,14 @@ fn BlockBody(block: crate::grpc::pb::Block) -> impl IntoView {
                 <span class="font-mono text-zinc-200">{tx_count}</span>
             </Field>
             <Field label_key="detail.timestamp">
-                <span class="font-mono text-zinc-400">{timestamp}</span>
+                <div class="flex flex-col items-end gap-0.5 text-right">
+                    <span class="font-mono text-xs text-zinc-300">
+                        {format_unix_ts(timestamp)}
+                    </span>
+                    <span class="text-[10px] uppercase tracking-[0.16em] text-zinc-500">
+                        {format_relative_ts(timestamp)}
+                    </span>
+                </div>
             </Field>
         </dl>
 
@@ -267,6 +276,91 @@ fn format_sentri(sentri: u64) -> String {
     let whole = sentri / 100_000_000;
     let frac = (sentri % 100_000_000) / 10_000;
     format!("{whole}.{frac:04}")
+}
+
+/// Unix-seconds → "YYYY-MM-DD HH:MM:SS UTC". Hand-rolled (no chrono on
+/// the wasm side) — rough Gregorian conversion via days-since-epoch
+/// and a leap-year accumulator. Good enough for block timestamps;
+/// don't reach for it for anything calendar-correctness-critical.
+fn format_unix_ts(ts: u64) -> String {
+    let secs = ts % 60;
+    let total_minutes = ts / 60;
+    let mins = total_minutes % 60;
+    let total_hours = total_minutes / 60;
+    let hours = total_hours % 24;
+    let mut days = total_hours / 24;
+
+    let mut year: u64 = 1970;
+    loop {
+        let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+        let year_days = if leap { 366 } else { 365 };
+        if days < year_days {
+            break;
+        }
+        days -= year_days;
+        year += 1;
+    }
+
+    let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+    let month_lengths = [
+        31u64,
+        if leap { 29 } else { 28 },
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
+    ];
+    let mut month: usize = 0;
+    while month < 12 && days >= month_lengths[month] {
+        days -= month_lengths[month];
+        month += 1;
+    }
+    let day = days + 1;
+    format!(
+        "{:04}-{:02}-{:02} {:02}:{:02}:{:02} UTC",
+        year,
+        month + 1,
+        day,
+        hours,
+        mins,
+        secs
+    )
+}
+
+/// Relative-time form ("3 menit lalu", "2 jam lalu"). Bahasa first;
+/// English short form fallback if we ever localise.
+fn format_relative_ts(ts: u64) -> String {
+    #[cfg(target_arch = "wasm32")]
+    let now = (js_sys_now_ms() / 1000.0) as u64;
+    #[cfg(not(target_arch = "wasm32"))]
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(ts);
+
+    let delta = now.saturating_sub(ts);
+    if delta < 5 {
+        "baru saja".into()
+    } else if delta < 60 {
+        format!("{delta} detik lalu")
+    } else if delta < 3600 {
+        format!("{} menit lalu", delta / 60)
+    } else if delta < 86400 {
+        format!("{} jam lalu", delta / 3600)
+    } else {
+        format!("{} hari lalu", delta / 86400)
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn js_sys_now_ms() -> f64 {
+    js_sys::Date::now()
 }
 
 #[component]

@@ -293,7 +293,7 @@ fn StatsGrid(stats: ChainStats) -> impl IntoView {
                     <span class="eyebrow text-zinc-500">"Latest Block"</span>
                     <IconSvg icon=Icon::Block />
                 </header>
-                <div class="mt-3 font-mono text-5xl font-bold tabular-nums tracking-tight text-sentrix-gold">
+                <div class="mt-3 font-serif text-6xl font-bold tabular-nums tracking-tight text-sentrix-gold">
                     "#" {block_height_fmt}
                 </div>
                 <div class="mt-3 flex items-center gap-2 text-[11px] text-zinc-500">
