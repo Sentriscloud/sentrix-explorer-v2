@@ -50,6 +50,39 @@ impl Network {
             Self::Testnet => "Testnet",
         }
     }
+
+    /// Public scan host the user lands on for this network. Used by the
+    /// network switcher to redirect cross-subdomain (each network ships
+    /// its own bundle, so we can't just flip a signal — full page nav).
+    pub fn explorer_url(&self) -> &'static str {
+        match self {
+            Self::Mainnet => "https://scan.sentriscloud.com",
+            Self::Testnet => "https://scan-testnet.sentriscloud.com",
+        }
+    }
+
+    /// Network-aware accent — emerald on mainnet, amber on testnet.
+    /// Operator wants visual diff so the user feels which network
+    /// they're on; testnet ≠ "real money", treat it as the warning
+    /// surface and keep emerald reserved for live mainnet.
+    pub fn accent_text(&self) -> &'static str {
+        match self {
+            Self::Mainnet => "text-emerald-500",
+            Self::Testnet => "text-amber-400",
+        }
+    }
+    pub fn accent_bg(&self) -> &'static str {
+        match self {
+            Self::Mainnet => "bg-emerald-500",
+            Self::Testnet => "bg-amber-400",
+        }
+    }
+    pub fn accent_pill(&self) -> &'static str {
+        match self {
+            Self::Mainnet => "border-emerald-500/30 bg-emerald-500/10 text-emerald-500",
+            Self::Testnet => "border-amber-400/30 bg-amber-400/10 text-amber-300",
+        }
+    }
 }
 
 /// Provide an `RwSignal<Network>` via context. Call once at App root.

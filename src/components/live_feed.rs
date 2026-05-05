@@ -11,11 +11,32 @@ use crate::components::identicon::Identicon;
 use crate::components::skeleton::SkeletonRow;
 use crate::i18n::{t, use_lang};
 use crate::state::feed::{BlockFeedState, BlockRow};
+use crate::state::network::use_network;
 
 #[component]
 pub fn LiveBlockFeed() -> impl IntoView {
     let feed = use_context::<BlockFeedState>().expect("BlockFeedState context");
     let lang = use_lang();
+    let network = use_network();
+
+    let pill_class = move || {
+        format!(
+            "inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-medium tracking-wide {}",
+            network.get().accent_pill()
+        )
+    };
+    let dot_class = move || {
+        format!(
+            "relative inline-flex h-1.5 w-1.5 rounded-full {}",
+            network.get().accent_bg()
+        )
+    };
+    let ping_class = move || {
+        format!(
+            "absolute inline-flex h-full w-full animate-ping rounded-full {} opacity-70",
+            network.get().accent_bg()
+        )
+    };
 
     view! {
         <section class="glass-card rounded-2xl p-6">
@@ -26,10 +47,10 @@ pub fn LiveBlockFeed() -> impl IntoView {
                         {move || t(lang.get(), "feed.latest_blocks")}
                     </h2>
                 </div>
-                <span class="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium tracking-wide text-emerald-500">
+                <span class=pill_class>
                     <span class="relative flex h-1.5 w-1.5">
-                        <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-70"></span>
-                        <span class="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                        <span class=ping_class></span>
+                        <span class=dot_class></span>
                     </span>
                     {move || feed.status.get()}
                 </span>

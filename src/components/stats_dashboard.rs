@@ -271,6 +271,7 @@ fn SupplyBar() -> impl IntoView {
         });
     }
 
+    let network = use_network();
     view! {
         <div class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-4">
             <div class="flex items-center justify-between">
@@ -288,7 +289,7 @@ fn SupplyBar() -> impl IntoView {
             </div>
             <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-zinc-800/60">
                 <div
-                    class="h-full rounded-full bg-emerald-500 transition-all duration-700"
+                    class=move || format!("h-full rounded-full transition-all duration-700 {}", network.get().accent_bg())
                     style=move || {
                         let m = minted_srx.get();
                         let pct = (m * 100) / TOTAL_SUPPLY_SRX.max(1);
@@ -311,28 +312,79 @@ enum StatsState {
     Error(String),
 }
 
+/// Network switcher — replaces the static "Mainnet · chain · 7119" badge.
+/// Click toggles a dropdown with both networks; selecting one navigates
+/// to the matching subdomain (each network ships its own bundle, so
+/// flipping context isn't enough — we have to cross-domain).
 #[component]
 fn NetworkBadge() -> impl IntoView {
     let network = use_network();
+    let open = RwSignal::new(false);
+
     view! {
-        <div class="flex items-center gap-3" role="status" aria-live="polite">
-            <span class=move || {
-                let base = "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-medium tracking-wide";
-                match network.get() {
-                    Network::Mainnet => format!("{base} border-emerald-500/30 bg-emerald-500/10 text-emerald-500"),
-                    Network::Testnet => format!("{base} border-amber-400/30 bg-amber-400/10 text-amber-300"),
+        <div class="relative inline-flex" role="status" aria-live="polite">
+            <button
+                type="button"
+                aria-haspopup="listbox"
+                aria-expanded=move || open.get().to_string()
+                on:click=move |_| open.update(|o| *o = !*o)
+                class=move || {
+                    let base = "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-medium tracking-wide transition-colors";
+                    format!("{base} {} hover:bg-opacity-20", network.get().accent_pill())
                 }
-            }>
-                <span class=move || match network.get() {
-                    Network::Mainnet => "h-1.5 w-1.5 rounded-full bg-emerald-500",
-                    Network::Testnet => "h-1.5 w-1.5 rounded-full bg-amber-400",
-                } />
-                {move || network.get().label()}
-            </span>
-            <span class="font-mono text-[11px] tabular-nums text-zinc-500">
-                "chain · " {move || network.get().chain_id().to_string()}
-            </span>
+            >
+                <span class=move || format!("h-1.5 w-1.5 rounded-full {}", network.get().accent_bg()) />
+                <span>{move || network.get().label()}</span>
+                <span class="font-mono text-[10px] text-zinc-500">
+                    "chain · " {move || network.get().chain_id().to_string()}
+                </span>
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="h-3 w-3 text-zinc-500"
+                >
+                    <path d="M6 9l6 6 6-6" />
+                </svg>
+            </button>
+
+            <Show when=move || open.get() fallback=|| ()>
+                <div
+                    class="absolute left-0 top-full z-20 mt-1 w-56 overflow-hidden rounded-md border border-zinc-800 bg-zinc-950 shadow-lg"
+                    role="listbox"
+                >
+                    <NetworkOption target=Network::Mainnet current=network />
+                    <NetworkOption target=Network::Testnet current=network />
+                </div>
+            </Show>
         </div>
+    }
+}
+
+#[component]
+fn NetworkOption(target: Network, current: RwSignal<Network>) -> impl IntoView {
+    view! {
+        <a
+            href=target.explorer_url()
+            role="option"
+            aria-selected=move || (current.get() == target).to_string()
+            class="flex items-center justify-between gap-3 px-3 py-2 text-xs transition-colors hover:bg-zinc-900"
+        >
+            <span class="flex items-center gap-2">
+                <span class="w-3 inline-flex justify-center text-emerald-500">
+                    {move || if current.get() == target { "✓" } else { "" }}
+                </span>
+                <span class=format!("inline-flex h-1.5 w-1.5 rounded-full {}", target.accent_bg())></span>
+                <span class="font-medium text-zinc-100">{target.label()}</span>
+            </span>
+            <span class="font-mono text-[10px] tabular-nums text-zinc-500">
+                "chain · " {target.chain_id().to_string()}
+            </span>
+        </a>
     }
 }
 
@@ -379,19 +431,32 @@ fn StatsGrid(stats: ChainStats) -> impl IntoView {
 /// hash + proposer + tx_count + timestamp alongside the height. Falls
 /// back to the REST height (`stats.block_height`) for the brief window
 /// before the gRPC stream's first block lands.
+///
+/// Identicon stays on the per-row tiles only — the hero stays clean
+/// (#height + truncated hash + metadata row), no leading visual.
 #[component]
 fn HeroBlockCard(height_fallback: u64) -> impl IntoView {
-    use crate::components::identicon::Identicon;
     use crate::labels::{label_for, Label};
     use crate::state::feed::{BlockFeedState, BlockRow};
 
     let feed = use_context::<BlockFeedState>().expect("BlockFeedState context");
     let network = use_network();
 
-    // First block in the feed = freshest. None until the gRPC stream
-    // lands its first block; until then we render the height-only
-    // fallback layout (skeleton-clean, no broken metadata).
     let latest = Memo::new(move |_| feed.blocks.with(|b| b.first().cloned()));
+
+    let accent_text_class = move || network.get().accent_text();
+    let pulse_dot_class = move || {
+        format!(
+            "relative inline-flex h-2 w-2 rounded-full {}",
+            network.get().accent_bg()
+        )
+    };
+    let pulse_ping_class = move || {
+        format!(
+            "absolute inline-flex h-full w-full animate-ping rounded-full {} opacity-70",
+            network.get().accent_bg()
+        )
+    };
 
     view! {
         <article
@@ -401,12 +466,12 @@ fn HeroBlockCard(height_fallback: u64) -> impl IntoView {
             <header class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
                     <span class="relative flex h-2 w-2">
-                        <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-70"></span>
-                        <span class="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+                        <span class=pulse_ping_class></span>
+                        <span class=pulse_dot_class></span>
                     </span>
                     <span class="eyebrow text-zinc-500">"Latest Block"</span>
                 </div>
-                <span class="text-emerald-500">
+                <span class=accent_text_class>
                     <IconSvg icon=Icon::Block />
                 </span>
             </header>
@@ -436,20 +501,16 @@ fn HeroBlockCard(height_fallback: u64) -> impl IntoView {
                     let height_fmt = format_int(row_for_render.height);
                     let tx_count = row_for_render.tx_count;
                     let timestamp = row_for_render.timestamp;
-                    let identicon_seed = row_for_render.hash_hex.clone();
+                    let height_class = format!(
+                        "mt-4 font-serif text-6xl font-bold tabular-nums tracking-tight {}",
+                        network.get().accent_text()
+                    );
 
                     view! {
-                        <div class="mt-4 flex items-center gap-5">
-                            <div class="identicon-frame h-20 w-20 shrink-0 rounded-xl ring-1 ring-zinc-800/80">
-                                <Identicon address_hex=identicon_seed size=80 />
-                            </div>
-                            <div class="min-w-0 flex-1">
-                                <div class="font-serif text-5xl font-bold tabular-nums tracking-tight text-emerald-500">
-                                    "#" {height_fmt}
-                                </div>
-                                <div class="mt-1 hex break-all text-xs text-zinc-500">{hash_short}</div>
-                            </div>
+                        <div class=height_class>
+                            "#" {height_fmt}
                         </div>
+                        <div class="mt-2 hex break-all text-sm text-zinc-500">{hash_short}</div>
                         <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-zinc-800/40 pt-3 text-[11px] text-zinc-500">
                             <span class="font-mono tabular-nums text-zinc-300">
                                 {tx_count} " txs"
@@ -464,15 +525,21 @@ fn HeroBlockCard(height_fallback: u64) -> impl IntoView {
                     }
                     .into_any()
                 }
-                None => view! {
-                    <div class="mt-4 font-serif text-6xl font-bold tabular-nums tracking-tight text-emerald-500">
-                        "#" {format_int(height_fallback)}
-                    </div>
-                    <div class="mt-3 text-[11px] uppercase tracking-[0.18em] text-zinc-500">
-                        "Connecting to live feed…"
-                    </div>
+                None => {
+                    let height_class = format!(
+                        "mt-4 font-serif text-6xl font-bold tabular-nums tracking-tight {}",
+                        network.get().accent_text()
+                    );
+                    view! {
+                        <div class=height_class>
+                            "#" {format_int(height_fallback)}
+                        </div>
+                        <div class="mt-3 text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                            "Connecting to live feed…"
+                        </div>
+                    }
+                    .into_any()
                 }
-                .into_any(),
             }}
         </article>
     }
