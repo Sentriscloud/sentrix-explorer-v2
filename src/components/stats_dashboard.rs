@@ -88,9 +88,10 @@ async fn fetch_chain_stats(network: Network) -> Result<ChainStats, FetchError> {
     })
 }
 
-/// Subset of `/sentrix_status_extended` the dashboard cares about.
-/// `Default` returns zero-valued fields so a partial-failure path can
-/// keep rendering the JSON-RPC-backed cards without short-circuiting.
+/// Subset of fields the dashboard cares about. Backed by gRPC v0.4
+/// `GetValidatorSet` + `GetMempool` — no JSON / REST involvement.
+/// `Default` keeps the UI rendering zeros rather than blank cards if
+/// any single call fails.
 #[cfg(target_arch = "wasm32")]
 #[derive(Default)]
 struct SentrixStatusSubset {
@@ -100,52 +101,28 @@ struct SentrixStatusSubset {
 }
 
 #[cfg(target_arch = "wasm32")]
-async fn fetch_sentrix_status(network: Network) -> Result<SentrixStatusSubset, FetchError> {
-    use gloo_net::http::Request;
-    use serde_json::Value;
+async fn fetch_sentrix_status(_network: Network) -> Result<SentrixStatusSubset, FetchError> {
+    use crate::grpc::client::SentrixGrpcClient;
 
-    let url = format!("{}/sentrix_status_extended", network.rpc_url());
-    let resp = Request::get(&url)
-        .send()
+    let mut client = SentrixGrpcClient::new(crate::GRPC_ENDPOINT);
+
+    // Two parallel single-method round-trips beat one bigger query —
+    // each handler is a single `state.read()` snapshot on the chain
+    // side, contending for the same lock anyway. Sequential keeps
+    // futures::join macros out of the bundle.
+    let validators = client
+        .get_validator_set()
         .await
-        .map_err(|e| FetchError::Rpc(format!("status: {e}")))?;
-    if !resp.ok() {
-        return Err(FetchError::Rpc(format!("status http {}", resp.status())));
-    }
-    let body: Value = resp
-        .json()
+        .map_err(|s| FetchError::Rpc(format!("validator_set: {}", s.message())))?;
+    let mempool = client
+        .get_mempool(0)
         .await
-        .map_err(|e| FetchError::Rpc(format!("status decode: {e}")))?;
-
-    // Pull fields defensively — every one of these has a chain-side
-    // type guarantee, but a future field rename shouldn't crash the
-    // dashboard. Missing field == 0; UI shows "0 / 0" which is
-    // recognisable as "endpoint changed shape" without a panic.
-    let active_validators = body
-        .pointer("/validators/active_count")
-        .and_then(Value::as_u64)
-        .map(|n| u32::try_from(n).unwrap_or(u32::MAX))
-        .unwrap_or(0);
-
-    // `top` is capped at 7 by stake-rank server-side; for mainnet's
-    // current 4-validator set this equals the registered count. Once
-    // external validators push registered > 7, swap to a dedicated
-    // count field on the endpoint or a /staking/validators call.
-    let total_validators = body
-        .pointer("/validators/top")
-        .and_then(Value::as_array)
-        .map(|a| u32::try_from(a.len()).unwrap_or(u32::MAX))
-        .unwrap_or(0);
-
-    let mempool_pending = body
-        .pointer("/mempool/size")
-        .and_then(Value::as_u64)
-        .unwrap_or(0);
+        .map_err(|s| FetchError::Rpc(format!("mempool: {}", s.message())))?;
 
     Ok(SentrixStatusSubset {
-        active_validators,
-        total_validators,
-        mempool_pending,
+        active_validators: validators.active_count,
+        total_validators: validators.total_count,
+        mempool_pending: u64::from(mempool.size),
     })
 }
 
@@ -343,12 +320,7 @@ enum Icon {
 }
 
 #[component]
-fn StatCard(
-    label: &'static str,
-    value: String,
-    accent: bool,
-    icon: Icon,
-) -> impl IntoView {
+fn StatCard(label: &'static str, value: String, accent: bool, icon: Icon) -> impl IntoView {
     let value_class = if accent {
         "mt-2 font-mono text-2xl font-bold tabular-nums text-sentrix-gold"
     } else {

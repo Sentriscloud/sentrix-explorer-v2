@@ -39,12 +39,8 @@ impl Label {
     /// dashboard so labels feel native, not bolted-on.
     pub const fn pill_classes(&self) -> &'static str {
         match self.kind {
-            LabelKind::Validator => {
-                "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-            }
-            LabelKind::Treasury => {
-                "border-amber-500/30 bg-amber-500/10 text-amber-300"
-            }
+            LabelKind::Validator => "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+            LabelKind::Treasury => "border-amber-500/30 bg-amber-500/10 text-amber-300",
             LabelKind::Token => "border-violet-500/30 bg-violet-500/10 text-violet-300",
             LabelKind::Account => "border-sky-500/30 bg-sky-500/10 text-sky-300",
         }
@@ -57,55 +53,91 @@ const SHARED: &[(&str, Label)] = &[
     // Premine wallets (v3 — post 2026-04-24 rotation)
     (
         "0x5b5b06688dcdbe532353ac610aaff41af825279d",
-        Label { name: "Founder v3", kind: LabelKind::Treasury },
+        Label {
+            name: "Founder v3",
+            kind: LabelKind::Treasury,
+        },
     ),
     (
         "0xeb70fdefd00fdb768dec06c478f450c351499f14",
-        Label { name: "Ecosystem Fund", kind: LabelKind::Treasury },
+        Label {
+            name: "Ecosystem Fund",
+            kind: LabelKind::Treasury,
+        },
     ),
     (
         "0x328d56b8174697ef6c9e40e19b7663797e16fa47",
-        Label { name: "Validator Incentive Pool", kind: LabelKind::Treasury },
+        Label {
+            name: "Validator Incentive Pool",
+            kind: LabelKind::Treasury,
+        },
     ),
     (
         "0x2578cad17e3e56c2970a5b5eab45952439f5ba97",
-        Label { name: "Strategic Reserve", kind: LabelKind::Treasury },
+        Label {
+            name: "Strategic Reserve",
+            kind: LabelKind::Treasury,
+        },
     ),
     // Governance signing wallet (1-of-1 SentrixSafe owner)
     (
         "0xa25236925bc10954e0519731cc7ba97f4bb5714b",
-        Label { name: "Authority Wallet", kind: LabelKind::Treasury },
+        Label {
+            name: "Authority Wallet",
+            kind: LabelKind::Treasury,
+        },
     ),
     // Mainnet validator operators — names match the systemd unit
     // identities so logs and dashboards line up.
     (
         "0x753f2f68829fbe76a0132295624f48b27ce2e2d9",
-        Label { name: "Sentrix Foundation (Validator)", kind: LabelKind::Validator },
+        Label {
+            name: "Sentrix Foundation (Validator)",
+            kind: LabelKind::Validator,
+        },
     ),
     (
         "0x0804a00f53fde72d46abd1db7ee3e97cbfd0a107",
-        Label { name: "Sentrix Treasury (Validator)", kind: LabelKind::Validator },
+        Label {
+            name: "Sentrix Treasury (Validator)",
+            kind: LabelKind::Validator,
+        },
     ),
     (
         "0x87c9976d4b2e360b9fbb87e4bd5442edce2a7511",
-        Label { name: "Sentrix Core (Validator)", kind: LabelKind::Validator },
+        Label {
+            name: "Sentrix Core (Validator)",
+            kind: LabelKind::Validator,
+        },
     ),
     (
         "0x4cad4793b25b6bb2c927eddfe911996070c7ce68",
-        Label { name: "Sentrix Beacon (Validator)", kind: LabelKind::Validator },
+        Label {
+            name: "Sentrix Beacon (Validator)",
+            kind: LabelKind::Validator,
+        },
     ),
     // Protocol-reserved sentinels — no private key, consensus-level only.
     (
         "0x0000000000000000000000000000000000000000",
-        Label { name: "Sentrix Token Op (sentinel)", kind: LabelKind::Treasury },
+        Label {
+            name: "Sentrix Token Op (sentinel)",
+            kind: LabelKind::Treasury,
+        },
     ),
     (
         "0x0000000000000000000000000000000000000002",
-        Label { name: "Protocol Treasury (Reward Escrow)", kind: LabelKind::Treasury },
+        Label {
+            name: "Protocol Treasury (Reward Escrow)",
+            kind: LabelKind::Treasury,
+        },
     ),
     (
         "0x0000000000000000000000000000000000000100",
-        Label { name: "Sentrix Staking (sentinel)", kind: LabelKind::Treasury },
+        Label {
+            name: "Sentrix Staking (sentinel)",
+            kind: LabelKind::Treasury,
+        },
     ),
 ];
 
@@ -114,23 +146,38 @@ const SHARED: &[(&str, Label)] = &[
 const MAINNET_ONLY: &[(&str, Label)] = &[
     (
         "0x6272dc0c842f05542f9ff7b5443e93c0642a3b26",
-        Label { name: "SentrixSafe", kind: LabelKind::Treasury },
+        Label {
+            name: "SentrixSafe",
+            kind: LabelKind::Treasury,
+        },
     ),
     (
         "0xab67e171c0de0cd6dd6fe87e5e399c091f9c9de8",
-        Label { name: "Sentrix DEX Router", kind: LabelKind::Token },
+        Label {
+            name: "Sentrix DEX Router",
+            kind: LabelKind::Token,
+        },
     ),
     (
         "0xc5344f0dde0b9916217449ad9222e446475ad936",
-        Label { name: "Sentrix DEX Factory", kind: LabelKind::Token },
+        Label {
+            name: "Sentrix DEX Factory",
+            kind: LabelKind::Token,
+        },
     ),
     (
         "0x4693b113e523a196d9579333c4ab8358e2656553",
-        Label { name: "WSRX", kind: LabelKind::Token },
+        Label {
+            name: "WSRX",
+            kind: LabelKind::Token,
+        },
     ),
     (
         "0xa79fc9015ae30766ab4d24a5d4d3a0c66f371504",
-        Label { name: "SGC", kind: LabelKind::Token },
+        Label {
+            name: "SGC",
+            kind: LabelKind::Token,
+        },
     ),
 ];
 
@@ -139,23 +186,38 @@ const MAINNET_ONLY: &[(&str, Label)] = &[
 const TESTNET_ONLY: &[(&str, Label)] = &[
     (
         "0xc9d7a61d7c2f428f6a055916488041fd00532110",
-        Label { name: "SentrixSafe (Testnet)", kind: LabelKind::Treasury },
+        Label {
+            name: "SentrixSafe (Testnet)",
+            kind: LabelKind::Treasury,
+        },
     ),
     (
         "0x2bf73491733c3b87d72b16d4f7151da294b55cb0",
-        Label { name: "Sentrix DEX Router (Testnet)", kind: LabelKind::Token },
+        Label {
+            name: "Sentrix DEX Router (Testnet)",
+            kind: LabelKind::Token,
+        },
     ),
     (
         "0x8565392086cba8d39cbba1f6f60ad1f1a17651c7",
-        Label { name: "Sentrix DEX Factory (Testnet)", kind: LabelKind::Token },
+        Label {
+            name: "Sentrix DEX Factory (Testnet)",
+            kind: LabelKind::Token,
+        },
     ),
     (
         "0x85d5e7694af31c2edd0a7e66b7c6c92c59ff949a",
-        Label { name: "WtSRX (Testnet)", kind: LabelKind::Token },
+        Label {
+            name: "WtSRX (Testnet)",
+            kind: LabelKind::Token,
+        },
     ),
     (
         "0x72730453f4080c6ad8def96c06f6074818fb95b5",
-        Label { name: "SGC (Testnet)", kind: LabelKind::Token },
+        Label {
+            name: "SGC (Testnet)",
+            kind: LabelKind::Token,
+        },
     ),
 ];
 
@@ -239,12 +301,19 @@ mod tests {
 
     #[test]
     fn resolves_per_network() {
-        let mainnet =
-            label_for("0xab67e171c0de0cd6dd6fe87e5e399c091f9c9de8", Network::Mainnet);
-        let testnet =
-            label_for("0xab67e171c0de0cd6dd6fe87e5e399c091f9c9de8", Network::Testnet);
+        let mainnet = label_for(
+            "0xab67e171c0de0cd6dd6fe87e5e399c091f9c9de8",
+            Network::Mainnet,
+        );
+        let testnet = label_for(
+            "0xab67e171c0de0cd6dd6fe87e5e399c091f9c9de8",
+            Network::Testnet,
+        );
         assert!(mainnet.is_some(), "mainnet router should resolve");
-        assert!(testnet.is_none(), "mainnet router should not resolve on testnet");
+        assert!(
+            testnet.is_none(),
+            "mainnet router should not resolve on testnet"
+        );
     }
 
     #[test]
@@ -253,17 +322,17 @@ mod tests {
             "0x5B5B06688DCDBE532353AC610AAFF41AF825279D",
             Network::Mainnet,
         );
-        let bare = label_for(
-            "5b5b06688dcdbe532353ac610aaff41af825279d",
-            Network::Mainnet,
-        );
+        let bare = label_for("5b5b06688dcdbe532353ac610aaff41af825279d", Network::Mainnet);
         assert!(with_prefix.is_some());
         assert!(bare.is_some());
     }
 
     #[test]
     fn unknown_returns_none() {
-        let l = label_for("0xdeadbeef0000000000000000000000000000beef", Network::Mainnet);
+        let l = label_for(
+            "0xdeadbeef0000000000000000000000000000beef",
+            Network::Mainnet,
+        );
         assert!(l.is_none());
     }
 

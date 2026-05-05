@@ -134,28 +134,12 @@ fn SupplyBar() -> impl IntoView {
 
     #[cfg(target_arch = "wasm32")]
     {
+        use crate::grpc::client::SentrixGrpcClient;
         leptos::task::spawn_local(async move {
-            let endpoint = format!(
-                "{}/sentrix_status_extended",
-                crate::state::network::Network::from_host(
-                    &web_sys::window()
-                        .and_then(|w| w.location().host().ok())
-                        .unwrap_or_default()
-                )
-                .rpc_url()
-            );
+            let mut client = SentrixGrpcClient::new(crate::GRPC_ENDPOINT);
             loop {
-                if let Ok(resp) = gloo_net::http::Request::get(&endpoint).send().await {
-                    if resp.ok() {
-                        if let Ok(body) = resp.json::<serde_json::Value>().await {
-                            if let Some(v) = body
-                                .pointer("/supply/minted_sentri")
-                                .and_then(serde_json::Value::as_u64)
-                            {
-                                minted_srx.set(v / 100_000_000);
-                            }
-                        }
-                    }
+                if let Ok(supply) = client.get_supply().await {
+                    minted_srx.set(supply.minted_sentri / 100_000_000);
                 }
                 crate::util::sleep_ms(5_000).await;
             }
