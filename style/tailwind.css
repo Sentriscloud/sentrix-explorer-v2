@@ -289,3 +289,51 @@ html.solar .obsidian-only {
 html.solar .solar-only {
     display: inline !important;
 }
+
+/* ─────────────────────────────────────────────────────────────────
+   Brand utilities — sentris-design signature primitives.
+   Not full @theme tokens (we keep zinc-* working); just the named
+   utilities the brand kit calls out.
+   ─────────────────────────────────────────────────────────────── */
+
+/* Eyebrow label — small uppercase mono, used above stat values and
+   section headings. Tighter than text-xs/uppercase tracking-wider
+   because the brand voice wants explicit editorial hand. */
+.eyebrow {
+    font-family:
+        ui-monospace, "JetBrains Mono", "IBM Plex Mono", Menlo, monospace;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    line-height: 1;
+}
+
+/* Corner-lines card — gold L-corners that fade in on hover. Premium
+   tell, not glow/glassmorphism (per brand anti-patterns). */
+.corner-lines::before,
+.corner-lines::after {
+    content: "";
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 200ms ease;
+}
+.corner-lines::before {
+    top: 6px;
+    left: 6px;
+    border-top: 1px solid #dbc17f;
+    border-left: 1px solid #dbc17f;
+}
+.corner-lines::after {
+    bottom: 6px;
+    right: 6px;
+    border-bottom: 1px solid #dbc17f;
+    border-right: 1px solid #dbc17f;
+}
+.corner-lines:hover::before,
+.corner-lines:hover::after {
+    opacity: 0.8;
+}

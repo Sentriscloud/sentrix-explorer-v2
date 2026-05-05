@@ -194,18 +194,25 @@ pub fn StatsDashboard() -> impl IntoView {
     // hydration-clean.
     let state: RwSignal<StatsState> = RwSignal::new(StatsState::Loading);
 
+    // 1s polling matches the chain's block cadence — LATEST BLOCK
+    // ticks every block instead of going stale for 5s windows.
+    // `/sentrix_status_extended` is a single in-memory snapshot read
+    // server-side, cheap enough to hammer at 1Hz from every explorer
+    // tab. If load shows up later, switch the high-cadence path to
+    // a `StreamEvents([BlockFinalized])` push and downsample REST to
+    // 5s for the validator/mempool fields.
     #[cfg(target_arch = "wasm32")]
     {
-        Effect::new(move |_| {
-            let net = network.get();
-            state.set(StatsState::Loading);
-            leptos::task::spawn_local(async move {
+        let net = network.get_untracked();
+        leptos::task::spawn_local(async move {
+            loop {
                 let next = match fetch_chain_stats(net).await {
                     Ok(s) => StatsState::Ready(s),
                     Err(e) => StatsState::Error(e.to_string()),
                 };
                 state.set(next);
-            });
+                crate::util::sleep_ms(1_000).await;
+            }
         });
     }
 
@@ -269,45 +276,36 @@ fn NetworkBadge() -> impl IntoView {
 fn StatsGrid(stats: ChainStats) -> impl IntoView {
     let block_time = format!("{:.1}s", f64::from(stats.avg_block_time_ms) / 1000.0);
     let validators = format!("{} / {}", stats.active_validators, stats.total_validators);
+    let _ = stats.network;
 
     view! {
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
             <StatCard
                 label="Latest Block"
                 value=format_int(stats.block_height)
-                trend=Trend::Up
+                accent=true
                 icon=Icon::Block
             />
             <StatCard
                 label="Avg Block Time"
                 value=block_time
-                trend=Trend::None
+                accent=false
                 icon=Icon::Clock
             />
             <StatCard
                 label="Active Validators"
                 value=validators
-                trend=Trend::None
+                accent=false
                 icon=Icon::Validators
             />
             <StatCard
                 label="Pending Tx"
                 value=format_int(stats.mempool_pending)
-                trend=Trend::None
+                accent=false
                 icon=Icon::Transactions
             />
         </div>
     }
-}
-
-// `Down` only fires once the real fetcher tracks negative deltas
-// (currently the mock only emits Up/None); allow until then.
-#[allow(dead_code)]
-#[derive(Clone, Copy)]
-enum Trend {
-    Up,
-    Down,
-    None,
 }
 
 #[derive(Clone, Copy)]
@@ -319,22 +317,28 @@ enum Icon {
 }
 
 #[component]
-fn StatCard(label: &'static str, value: String, trend: Trend, icon: Icon) -> impl IntoView {
+fn StatCard(
+    label: &'static str,
+    value: String,
+    accent: bool,
+    icon: Icon,
+) -> impl IntoView {
+    let value_class = if accent {
+        "mt-2.5 font-mono text-3xl font-bold tabular-nums text-sentrix-gold"
+    } else {
+        "mt-2.5 font-mono text-3xl font-bold tabular-nums text-zinc-100"
+    };
+
     view! {
         <article
-            class="group rounded-xl border border-slate-800 bg-slate-900/50 p-5 backdrop-blur-sm transition-all hover:scale-[1.02] hover:border-slate-700"
+            class="group corner-lines relative rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-5 transition-colors hover:border-sentrix-bronze/40"
             aria-label=label
         >
             <header class="flex items-center justify-between">
-                <span class="text-xs font-medium uppercase tracking-wider text-slate-400">
-                    {label}
-                </span>
+                <span class="eyebrow text-zinc-500">{label}</span>
                 <IconSvg icon />
             </header>
-            <div class="mt-3 font-mono text-2xl font-bold tabular-nums text-slate-100">
-                {value}
-            </div>
-            <TrendIndicator trend />
+            <div class=value_class>{value}</div>
         </article>
     }
 }
@@ -358,7 +362,7 @@ fn IconSvg(icon: Icon) -> impl IntoView {
         <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
-            class="h-4 w-4 text-slate-500 transition-colors group-hover:text-emerald-400"
+            class="h-4 w-4 text-zinc-600 transition-colors group-hover:text-sentrix-gold"
             fill="none"
             stroke="currentColor"
             stroke-width="2"
@@ -368,20 +372,6 @@ fn IconSvg(icon: Icon) -> impl IntoView {
         >
             <path d=path />
         </svg>
-    }
-}
-
-#[component]
-fn TrendIndicator(trend: Trend) -> impl IntoView {
-    // TODO: real "vs 1h ago" diff once we keep a rolling sample.
-    // For now the direction is a hint; values are mock.
-    let (cls, label) = match trend {
-        Trend::Up => ("text-emerald-400", "↑ 0.0% vs 1h ago"),
-        Trend::Down => ("text-rose-400", "↓ 0.0% vs 1h ago"),
-        Trend::None => ("text-slate-500", "— stable"),
-    };
-    view! {
-        <div class=format!("mt-1 text-xs {cls}")>{label}</div>
     }
 }
 
