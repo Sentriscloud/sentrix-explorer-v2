@@ -4,3 +4,4 @@ pub mod deploys;
 pub mod feed;
 pub mod gas;
 pub mod mempool;
+pub mod network;

@@ -13,6 +13,7 @@ pub mod rwa;
 pub mod skeleton;
 pub mod sparkline;
 pub mod stats;
+pub mod stats_dashboard;
 pub mod testnet_banner;
 pub mod tx_detail;
 pub mod validator_activity;

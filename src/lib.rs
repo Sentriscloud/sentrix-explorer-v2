@@ -87,6 +87,7 @@ pub fn App() -> impl IntoView {
     state::chain::provide_chain_state();
     state::deploys::provide_deploy_history();
     state::canonical::provide_canonical_registry();
+    state::network::provide_network_signal();
 
     let (title, description) = match config::Network::current() {
         config::Network::Mainnet => (
