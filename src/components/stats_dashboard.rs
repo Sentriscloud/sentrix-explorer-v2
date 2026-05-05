@@ -340,36 +340,13 @@ fn NetworkBadge() -> impl IntoView {
 fn StatsGrid(stats: ChainStats) -> impl IntoView {
     let block_time = format!("{:.1}s", f64::from(stats.avg_block_time_ms) / 1000.0);
     let validators = format!("{} / {}", stats.active_validators, stats.total_validators);
-    let block_height_fmt = format_int(stats.block_height);
     let _ = stats.network;
+    let mempool_pending = stats.mempool_pending;
+    let height_fallback = stats.block_height;
 
     view! {
         <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
-            // Hero: latest block, full-width on mobile, 2/3 wide on desktop.
-            // The high-signal number gets editorial treatment — text-5xl
-            // gold tabular-nums, eyebrow above, "Sentrix Mainnet · live"
-            // strapline below to anchor the network identity.
-            <article
-                class="corner-lines relative md:col-span-2 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 transition-colors hover:border-emerald-700/40"
-                aria-label="Latest Block"
-            >
-                <header class="flex items-center justify-between">
-                    <span class="eyebrow text-zinc-500">"Latest Block"</span>
-                    <IconSvg icon=Icon::Block />
-                </header>
-                <div class="mt-3 font-serif text-6xl font-bold tabular-nums tracking-tight text-emerald-500">
-                    "#" {block_height_fmt}
-                </div>
-                <div class="mt-3 flex items-center gap-2 text-[11px] text-zinc-500">
-                    <span class="relative flex h-1.5 w-1.5">
-                        <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-70"></span>
-                        <span class="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                    </span>
-                    <span class="font-mono uppercase tracking-[0.18em]">
-                        {move || crate::config::Network::current().label()} " · live"
-                    </span>
-                </div>
-            </article>
+            <HeroBlockCard height_fallback />
 
             // Three compact companion cards alongside the hero. Auto rows
             // so each card sizes to its content instead of stretching to
@@ -389,12 +366,145 @@ fn StatsGrid(stats: ChainStats) -> impl IntoView {
                 />
                 <StatCard
                     label="Pending Tx"
-                    value=format_int(stats.mempool_pending)
+                    value=format_int(mempool_pending)
                     accent=false
                     icon=Icon::Transactions
                 />
             </div>
         </div>
+    }
+}
+
+/// Hero block card — reads `BlockFeedState` from context so it carries
+/// hash + proposer + tx_count + timestamp alongside the height. Falls
+/// back to the REST height (`stats.block_height`) for the brief window
+/// before the gRPC stream's first block lands.
+#[component]
+fn HeroBlockCard(height_fallback: u64) -> impl IntoView {
+    use crate::components::identicon::Identicon;
+    use crate::labels::{label_for, Label};
+    use crate::state::feed::{BlockFeedState, BlockRow};
+
+    let feed = use_context::<BlockFeedState>().expect("BlockFeedState context");
+    let network = use_network();
+
+    // First block in the feed = freshest. None until the gRPC stream
+    // lands its first block; until then we render the height-only
+    // fallback layout (skeleton-clean, no broken metadata).
+    let latest = Memo::new(move |_| feed.blocks.with(|b| b.first().cloned()));
+
+    view! {
+        <article
+            class="corner-lines relative md:col-span-2 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-6 transition-colors hover:border-emerald-700/40"
+            aria-label="Latest Block"
+        >
+            <header class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="relative flex h-2 w-2">
+                        <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-70"></span>
+                        <span class="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+                    </span>
+                    <span class="eyebrow text-zinc-500">"Latest Block"</span>
+                </div>
+                <span class="text-emerald-500">
+                    <IconSvg icon=Icon::Block />
+                </span>
+            </header>
+
+            {move || match latest.get() {
+                Some(row) => {
+                    let row_for_render: BlockRow = row;
+                    let hash_short = if row_for_render.hash_hex.len() >= 8 {
+                        format!(
+                            "0x{}…{}",
+                            &row_for_render.hash_hex[..4],
+                            &row_for_render.hash_hex[row_for_render.hash_hex.len() - 4..]
+                        )
+                    } else {
+                        format!("0x{}", row_for_render.hash_hex)
+                    };
+                    let proposer_full = format!("0x{}", row_for_render.proposer_hex);
+                    let proposer_label = label_for(&proposer_full, network.get())
+                        .map(|l: Label| l.name.to_string())
+                        .unwrap_or_else(|| {
+                            if row_for_render.proposer_hex.len() >= 6 {
+                                format!("0x{}…", &row_for_render.proposer_hex[..6])
+                            } else {
+                                proposer_full.clone()
+                            }
+                        });
+                    let height_fmt = format_int(row_for_render.height);
+                    let tx_count = row_for_render.tx_count;
+                    let timestamp = row_for_render.timestamp;
+                    let identicon_seed = row_for_render.hash_hex.clone();
+
+                    view! {
+                        <div class="mt-4 flex items-center gap-5">
+                            <div class="identicon-frame h-20 w-20 shrink-0 rounded-xl ring-1 ring-zinc-800/80">
+                                <Identicon address_hex=identicon_seed size=80 />
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="font-serif text-5xl font-bold tabular-nums tracking-tight text-emerald-500">
+                                    "#" {height_fmt}
+                                </div>
+                                <div class="mt-1 hex break-all text-xs text-zinc-500">{hash_short}</div>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-zinc-800/40 pt-3 text-[11px] text-zinc-500">
+                            <span class="font-mono tabular-nums text-zinc-300">
+                                {tx_count} " txs"
+                            </span>
+                            <span class="text-zinc-700">"·"</span>
+                            <span class="font-mono">{proposer_label}</span>
+                            <span class="text-zinc-700">"·"</span>
+                            <span class="font-mono tabular-nums">
+                                {move || format_relative_short(timestamp)}
+                            </span>
+                        </div>
+                    }
+                    .into_any()
+                }
+                None => view! {
+                    <div class="mt-4 font-serif text-6xl font-bold tabular-nums tracking-tight text-emerald-500">
+                        "#" {format_int(height_fallback)}
+                    </div>
+                    <div class="mt-3 text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                        "Connecting to live feed…"
+                    </div>
+                }
+                .into_any(),
+            }}
+        </article>
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+fn format_relative_short(ts: u64) -> String {
+    let now = (js_sys::Date::now() / 1000.0) as u64;
+    relative_short(now, ts)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn format_relative_short(ts: u64) -> String {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(ts);
+    relative_short(now, ts)
+}
+
+fn relative_short(now: u64, ts: u64) -> String {
+    let delta = now.saturating_sub(ts);
+    if delta < 5 {
+        "just now".into()
+    } else if delta < 60 {
+        format!("{delta}s ago")
+    } else if delta < 3600 {
+        format!("{} min ago", delta / 60)
+    } else if delta < 86400 {
+        format!("{} hr ago", delta / 3600)
+    } else {
+        format!("{} d ago", delta / 86400)
     }
 }
 

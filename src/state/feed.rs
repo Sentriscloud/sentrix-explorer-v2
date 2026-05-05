@@ -27,7 +27,7 @@ const MAX_TX_INDEX: usize = 500;
 /// `hash_hex` is the full lowercase 64-char hex; truncation happens in
 /// the view. Keying `<For/>` on the full hash makes us robust to brief
 /// fork moments where two distinct blocks could share a height.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct BlockRow {
     pub height: u64,
     pub hash_hex: String,
