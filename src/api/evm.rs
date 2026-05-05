@@ -47,6 +47,16 @@ pub struct LogEntry {
     pub data: String,
 }
 
+/// Slim block summary — just the fields the UI needs today. The full
+/// `eth_getBlockByNumber` response is rich; pulling just height +
+/// timestamp keeps the deserialise path narrow.
+#[derive(Clone, Debug)]
+pub struct EvmBlockSummary {
+    pub number: u64,
+    /// Unix-seconds. EVM block timestamps are seconds, not millis.
+    pub timestamp: u64,
+}
+
 pub trait EvmProvider {
     fn chain_id(&self) -> impl std::future::Future<Output = Result<u64, EvmError>>;
     fn block_number(&self) -> impl std::future::Future<Output = Result<u64, EvmError>>;
@@ -78,6 +88,14 @@ pub trait EvmProvider {
         from_block: u64,
         to_block: u64,
     ) -> impl std::future::Future<Output = Result<Vec<LogEntry>, EvmError>>;
+
+    /// `eth_getBlockByNumber(<n>, false)` — slim summary only,
+    /// transactions list omitted. Use `false` for the second param
+    /// keeps the response O(1) instead of O(tx-count) over the wire.
+    fn get_block_by_number(
+        &self,
+        n: u64,
+    ) -> impl std::future::Future<Output = Result<EvmBlockSummary, EvmError>>;
 }
 
 #[derive(Default, Clone, Copy)]
@@ -113,6 +131,9 @@ impl EvmProvider for NoopEvmProvider {
     ) -> Result<Vec<LogEntry>, EvmError> {
         Err(EvmError::Unimplemented)
     }
+    async fn get_block_by_number(&self, _n: u64) -> Result<EvmBlockSummary, EvmError> {
+        Err(EvmError::Unimplemented)
+    }
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -120,7 +141,9 @@ pub use http::HttpEvmProvider;
 
 #[cfg(target_arch = "wasm32")]
 mod http {
-    use super::{CallReturn, EvmAddress, EvmError, EvmHash, EvmProvider, LogEntry};
+    use super::{
+        CallReturn, EvmAddress, EvmBlockSummary, EvmError, EvmHash, EvmProvider, LogEntry,
+    };
     use gloo_net::http::Request;
     use serde_json::{json, Value};
 
@@ -252,6 +275,30 @@ mod http {
             let v = self.rpc("eth_sendRawTransaction", json!([body])).await?;
             let s = v.as_str().ok_or_else(|| EvmError::Rpc("not str".into()))?;
             Ok(s.to_string())
+        }
+
+        async fn get_block_by_number(&self, n: u64) -> Result<EvmBlockSummary, EvmError> {
+            let tag = format!("0x{n:x}");
+            // Second param `false` = don't include full tx objects.
+            let v = self
+                .rpc("eth_getBlockByNumber", json!([tag, false]))
+                .await?;
+            let obj = v
+                .as_object()
+                .ok_or_else(|| EvmError::Rpc("block: not object".into()))?;
+            let parse_hex = |k: &str| -> Result<u64, EvmError> {
+                let s = obj
+                    .get(k)
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| EvmError::Rpc(format!("block.{k} missing")))?;
+                let cleaned = s.strip_prefix("0x").unwrap_or(s);
+                u64::from_str_radix(cleaned, 16)
+                    .map_err(|e| EvmError::Rpc(format!("block.{k}: {e}")))
+            };
+            Ok(EvmBlockSummary {
+                number: parse_hex("number")?,
+                timestamp: parse_hex("timestamp")?,
+            })
         }
 
         async fn get_logs(

@@ -38,35 +38,46 @@ impl std::fmt::Display for FetchError {
 
 impl std::error::Error for FetchError {}
 
-/// Mock chain-stats fetcher. Replace with real RPC + indexer calls.
+/// Real chain-stats fetcher (wasm path) with SSR mock fallback.
+///
+/// ## Wired today
+///   - `block_height`      → `eth_blockNumber` against `network.rpc_url()`
+///   - `avg_block_time_ms` → mean delta from latest + (latest - 99)
+///     timestamps via two `eth_getBlockByNumber` calls
+///
+/// ## Still mock (require new endpoints)
+///   - `active_validators` / `total_validators` → needs native gRPC
+///     `Sentrix.GetValidatorSet` (proto v0.3) or a curated registry
+///   - `total_transactions` → no direct RPC; needs indexer aggregation
+///
+/// The two mock fields keep stable values so the UI doesn't pulse;
+/// flip them as endpoints land.
+#[cfg(target_arch = "wasm32")]
 async fn fetch_chain_stats(network: Network) -> Result<ChainStats, FetchError> {
-    sleep_500ms().await;
+    use crate::api::evm::{EvmProvider, HttpEvmProvider};
 
-    // TODO: replace mock with real RPC composition.
-    //
-    //   1. block_height        → POST `eth_blockNumber` against
-    //      `network.rpc_url()`. Hex-decode the result.
-    //   2. avg_block_time_ms   → fetch last 100 block timestamps via
-    //      `eth_getBlockByNumber(<n>, false)` and compute the mean
-    //      delta. Cache server-side; SSR pre-render shouldn't fan
-    //      out 100 RPCs per request.
-    //   3. active_validators   → native gRPC `Sentrix.GetValidatorSet`
-    //      (proto v0.3) or read from a curated registry endpoint.
-    //   4. total_transactions  → cumulative tx count from indexer
-    //      (chain RPC doesn't expose this directly; needs an aggregator).
-    //
-    // Wire each one into `tokio::join!` so the four hits parallelise.
+    let provider = HttpEvmProvider::new(network.rpc_url());
 
-    let _ = network.rpc_url();
+    // Sequential rather than `futures::join!` — adding the macro pulls
+    // a procmacro re-export and the three hits add maybe 200 ms over
+    // a parallel version. Worth revisiting if/when the real
+    // validator + indexer endpoints push us to 5+ hits.
+    let block_height = provider
+        .block_number()
+        .await
+        .map_err(|e| FetchError::Rpc(format!("block_number: {e:?}")))?;
+
+    let avg_block_time_ms = compute_avg_block_time_ms(&provider, block_height).await;
 
     Ok(ChainStats {
-        block_height: match network {
-            Network::Mainnet => 4_521_873,
-            Network::Testnet => 1_204_512,
-        },
-        avg_block_time_ms: 1_200,
+        block_height,
+        avg_block_time_ms,
+        // TODO: replace with `Sentrix.GetValidatorSet` once chain
+        // proto v0.3 lands.
         active_validators: 21,
         total_validators: 25,
+        // TODO: cumulative tx count — needs an indexer aggregation
+        // endpoint; chain RPC doesn't expose a direct query.
         total_transactions: match network {
             Network::Mainnet => 12_847_392,
             Network::Testnet => 2_103_847,
@@ -75,9 +86,44 @@ async fn fetch_chain_stats(network: Network) -> Result<ChainStats, FetchError> {
     })
 }
 
+/// SSR-side fetcher — server pre-render returns mock so we don't fan
+/// out external RPC from the prerender path. The hydrated bundle
+/// runs the real `fetch_chain_stats` above on the client.
+#[cfg(not(target_arch = "wasm32"))]
+async fn fetch_chain_stats(network: Network) -> Result<ChainStats, FetchError> {
+    sleep_500ms().await;
+    Ok(ChainStats {
+        block_height: 0,
+        avg_block_time_ms: 0,
+        active_validators: 21,
+        total_validators: 25,
+        total_transactions: 0,
+        network,
+    })
+}
+
+/// Two-point average — latest + (latest - 99) timestamps, divide by
+/// the gap. Defaults to 1200 ms (chain target) on any RPC failure
+/// or when there aren't enough blocks yet.
 #[cfg(target_arch = "wasm32")]
-async fn sleep_500ms() {
-    crate::util::sleep_ms(500).await;
+async fn compute_avg_block_time_ms<P: crate::api::evm::EvmProvider>(provider: &P, tip: u64) -> u32 {
+    const FALLBACK_MS: u32 = 1_200;
+    if tip < 100 {
+        return FALLBACK_MS;
+    }
+    let older = tip - 99;
+    let (Ok(t_new), Ok(t_old)) = (
+        provider.get_block_by_number(tip).await,
+        provider.get_block_by_number(older).await,
+    ) else {
+        return FALLBACK_MS;
+    };
+    if t_new.timestamp <= t_old.timestamp {
+        return FALLBACK_MS;
+    }
+    // (Δseconds * 1000) / 99 → millis per block, mean over the window.
+    let span_ms = (t_new.timestamp - t_old.timestamp).saturating_mul(1_000);
+    u32::try_from(span_ms / 99).unwrap_or(FALLBACK_MS)
 }
 
 #[cfg(not(target_arch = "wasm32"))]

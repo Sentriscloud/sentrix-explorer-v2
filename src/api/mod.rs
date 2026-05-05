@@ -33,5 +33,5 @@ pub mod native;
 pub use address::{classify_address, AddressKind};
 #[cfg(target_arch = "wasm32")]
 pub use evm::HttpEvmProvider;
-pub use evm::{EvmError, EvmProvider, LogEntry, NoopEvmProvider};
+pub use evm::{EvmBlockSummary, EvmError, EvmProvider, LogEntry, NoopEvmProvider};
 pub use native::{NativeError, NativeProvider, SentrixNativeProvider};
