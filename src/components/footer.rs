@@ -70,9 +70,7 @@ pub fn Footer() -> impl IntoView {
 fn Group(title: &'static str, children: Children) -> impl IntoView {
     view! {
         <div>
-            <div class="mb-2 text-[10px] uppercase tracking-[0.18em] text-zinc-400">
-                {title}
-            </div>
+            <div class="eyebrow mb-2 text-zinc-400">{title}</div>
             <div class="space-y-1">{children()}</div>
         </div>
     }
@@ -85,7 +83,7 @@ fn FooterLink(href: &'static str, label: &'static str) -> impl IntoView {
             href=href
             target="_blank"
             rel="noopener"
-            class="block py-0.5 transition hover:text-amber-300"
+            class="block py-0.5 transition hover:text-sentrix-gold"
         >
             {label}
         </a>
@@ -97,7 +95,7 @@ fn InternalLink(href: &'static str, label: &'static str) -> impl IntoView {
     view! {
         <a
             href=href
-            class="block py-0.5 transition hover:text-amber-300"
+            class="block py-0.5 transition hover:text-sentrix-gold"
         >
             {label}
         </a>

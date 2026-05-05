@@ -251,22 +251,22 @@ enum StatsState {
 fn NetworkBadge() -> impl IntoView {
     let network = use_network();
     view! {
-        <div class="flex items-center gap-2" role="status" aria-live="polite">
+        <div class="flex items-center gap-3" role="status" aria-live="polite">
             <span class=move || {
-                let base = "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium";
+                let base = "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-medium tracking-wide";
                 match network.get() {
-                    Network::Mainnet => format!("{base} border-emerald-500/30 bg-emerald-500/10 text-emerald-300"),
-                    Network::Testnet => format!("{base} border-amber-500/30 bg-amber-500/10 text-amber-300"),
+                    Network::Mainnet => format!("{base} border-sentrix-gold/30 bg-sentrix-gold/10 text-sentrix-gold"),
+                    Network::Testnet => format!("{base} border-amber-400/30 bg-amber-400/10 text-amber-300"),
                 }
             }>
                 <span class=move || match network.get() {
-                    Network::Mainnet => "h-1.5 w-1.5 rounded-full bg-emerald-500",
-                    Network::Testnet => "h-1.5 w-1.5 rounded-full bg-amber-500",
+                    Network::Mainnet => "h-1.5 w-1.5 rounded-full bg-sentrix-gold",
+                    Network::Testnet => "h-1.5 w-1.5 rounded-full bg-amber-400",
                 } />
                 {move || network.get().label()}
             </span>
-            <span class="hex text-[10px] text-slate-500">
-                "chain id · " {move || network.get().chain_id().to_string()}
+            <span class="font-mono text-[11px] tabular-nums text-zinc-500">
+                "chain · " {move || network.get().chain_id().to_string()}
             </span>
         </div>
     }

@@ -17,10 +17,10 @@ pub fn Navbar() -> impl IntoView {
 
     let (badge_class, badge_text) = match network {
         Network::Mainnet => (
-            "border-amber-500/30 bg-amber-500/10 text-amber-200",
+            "border-sentrix-gold/30 bg-sentrix-gold/10 text-sentrix-gold",
             "MAINNET",
         ),
-        Network::Testnet => ("border-sky-500/30 bg-sky-500/10 text-sky-200", "TESTNET"),
+        Network::Testnet => ("border-sky-400/30 bg-sky-400/10 text-sky-300", "TESTNET"),
     };
 
     let toggle_target = services.sibling_explorer;
@@ -34,7 +34,7 @@ pub fn Navbar() -> impl IntoView {
     // setting `window.location.href` directly, but routed through
     // Leptos so SSR and CSR agree on the markup.
     view! {
-        <header class="sticky top-0 z-30 -mx-4 mb-8 flex flex-wrap items-center justify-between gap-4 border-b border-white/10 bg-zinc-950/80 px-4 py-3 backdrop-blur-md">
+        <header class="sticky top-0 z-30 -mx-4 mb-8 flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800/60 bg-zinc-950/95 px-4 py-3">
             <div class="flex items-center gap-6">
                 <a href=services.explorer class="flex items-center gap-3">
                     <BrandMark />
@@ -73,7 +73,7 @@ pub fn Navbar() -> impl IntoView {
                 <a
                     href=toggle_target
                     title=move || t(lang.get(), toggle_key)
-                    class="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-200 transition hover:border-amber-400 hover:bg-amber-500/20"
+                    class="rounded-md border border-sentrix-gold/40 bg-sentrix-gold/10 px-3 py-1.5 text-xs font-semibold tracking-wide text-sentrix-gold transition hover:border-sentrix-gold/70 hover:bg-sentrix-gold/15"
                 >
                     {move || t(lang.get(), toggle_key)}
                 </a>
@@ -103,7 +103,7 @@ fn ExternalLink(href: &'static str, label_key: &'static str) -> impl IntoView {
             href=href
             target="_blank"
             rel="noopener"
-            class="rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-1.5 text-zinc-300 transition hover:border-amber-500/40 hover:text-amber-200"
+            class="rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-1.5 text-zinc-300 transition hover:border-sentrix-gold/40 hover:text-sentrix-gold"
         >
             {move || t(lang.get(), label_key)}
         </a>
@@ -184,7 +184,7 @@ fn ThemeToggle() -> impl IntoView {
             type="button"
             on:click=on_click
             title="Toggle Obsidian / Solar"
-            class="rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-1.5 text-zinc-300 transition hover:border-amber-500/40 hover:text-amber-200"
+            class="rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-1.5 text-zinc-300 transition hover:border-sentrix-gold/40 hover:text-sentrix-gold"
         >
             // Sun + moon glyphs in one toggle. Solar shows sun-only,
             // Obsidian shows the crescent — the parent .solar class
