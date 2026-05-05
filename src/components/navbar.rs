@@ -34,7 +34,7 @@ pub fn Navbar() -> impl IntoView {
     // setting `window.location.href` directly, but routed through
     // Leptos so SSR and CSR agree on the markup.
     view! {
-        <header class="mb-8 flex flex-wrap items-center justify-between gap-4">
+        <header class="sticky top-0 z-30 -mx-4 mb-8 flex flex-wrap items-center justify-between gap-4 border-b border-white/10 bg-zinc-950/80 px-4 py-3 backdrop-blur-md">
             <div class="flex items-center gap-6">
                 <a href=services.explorer class="flex items-center gap-3">
                     <BrandMark />
@@ -73,7 +73,7 @@ pub fn Navbar() -> impl IntoView {
                 <a
                     href=toggle_target
                     title=move || t(lang.get(), toggle_key)
-                    class="rounded-md border border-zinc-700/60 bg-zinc-900/60 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-amber-500/40 hover:text-amber-200"
+                    class="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-200 transition hover:border-amber-400 hover:bg-amber-500/20"
                 >
                     {move || t(lang.get(), toggle_key)}
                 </a>

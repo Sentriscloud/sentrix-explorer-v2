@@ -36,6 +36,11 @@ pub mod util;
 /// env vars. See `config::grpc_endpoint`.
 pub const GRPC_ENDPOINT: &str = config::grpc_endpoint();
 
+/// CSS bundle version. Bump when tailwind.css shape changes — drives
+/// the `?v=N` query param on the `<Stylesheet>` href so CDN/edge
+/// caches don't pin a stale build.
+const CSS_BUMP: u32 = 2;
+
 /// Document shell — only used by SSR; CSR mounts directly on `<body>`.
 pub fn shell(options: LeptosOptions) -> impl IntoView {
     view! {
@@ -95,7 +100,11 @@ pub fn App() -> impl IntoView {
     };
 
     view! {
-        <Stylesheet id="leptos" href="/pkg/sentrix-explorer-v2.css" />
+        // Version query bypasses any stale CDN cache without needing
+        // a CF API purge. Bump CSS_BUMP whenever the bundled CSS
+        // shape changes. The HTML itself isn't long-cached by Caddy
+        // so the new ?v= is picked up on the next page load.
+        <Stylesheet id="leptos" href=format!("/pkg/sentrix-explorer-v2.css?v={}", CSS_BUMP) />
         <Title text=title />
         <Meta name="description" content=description />
         <Meta property="og:type" content="website" />

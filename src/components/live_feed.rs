@@ -81,13 +81,10 @@ fn EmptyState() -> impl IntoView {
     let lang = use_lang();
     view! {
         <div class="space-y-3">
-            // Three skeleton rows during the connecting → first-block
-            // gap. Replaces the bare "awaiting" line so the layout
-            // doesn't suddenly inflate when the first row paints.
             <SkeletonRow />
             <SkeletonRow />
             <SkeletonRow />
-            <div class="pt-2 text-center text-xs text-zinc-500">
+            <div class="connecting-pulse pt-2 text-center text-xs text-zinc-500">
                 {move || t(lang.get(), "feed.awaiting")}
             </div>
         </div>

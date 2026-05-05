@@ -81,7 +81,7 @@ fn PendingEmpty() -> impl IntoView {
         <div class="space-y-2">
             <SkeletonRow />
             <SkeletonRow />
-            <div class="pt-2 text-center text-xs text-zinc-500">
+            <div class="connecting-pulse pt-2 text-center text-xs text-zinc-500">
                 {move || t(lang.get(), "mempool.empty")}
             </div>
         </div>
