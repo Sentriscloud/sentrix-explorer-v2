@@ -88,12 +88,11 @@ async fn fetch_chain_stats(network: Network) -> Result<ChainStats, FetchError> {
     })
 }
 
-/// Subset of fields the dashboard cares about. REST-bridged for now;
-/// the pure-gRPC swap landed prematurely in #1 (chain v2.1.72 with
-/// `GetValidatorSet`/`GetSupply`/`GetMempool` is still in review at
-/// sentrix-labs/sentrix#472), so the gRPC calls 502'd the cards. Falls
-/// back to the existing `/sentrix_status_extended` endpoint until chain
-/// v2.1.72 ships to prod, then we flip back to gRPC in a clean PR.
+/// Subset of fields the dashboard cares about. Backed by gRPC v0.4
+/// `GetValidatorSet` + `GetMempool` — chain v2.1.72 shipped 2026-05-05
+/// across both mainnet (vps1/vps2/vps3/vps5 simul-start) and testnet
+/// (vps4 docker), so the read-only RPCs are now real on both networks.
+/// Replaces the previous REST `/sentrix_status_extended` bridge.
 #[cfg(target_arch = "wasm32")]
 #[derive(Default)]
 struct SentrixStatusSubset {
@@ -103,42 +102,23 @@ struct SentrixStatusSubset {
 }
 
 #[cfg(target_arch = "wasm32")]
-async fn fetch_sentrix_status(network: Network) -> Result<SentrixStatusSubset, FetchError> {
-    use gloo_net::http::Request;
-    use serde_json::Value;
+async fn fetch_sentrix_status(_network: Network) -> Result<SentrixStatusSubset, FetchError> {
+    use crate::grpc::client::SentrixGrpcClient;
 
-    let url = format!("{}/sentrix_status_extended", network.rpc_url());
-    let resp = Request::get(&url)
-        .send()
+    let mut client = SentrixGrpcClient::new(crate::GRPC_ENDPOINT);
+    let validators = client
+        .get_validator_set()
         .await
-        .map_err(|e| FetchError::Rpc(format!("status: {e}")))?;
-    if !resp.ok() {
-        return Err(FetchError::Rpc(format!("status http {}", resp.status())));
-    }
-    let body: Value = resp
-        .json()
+        .map_err(|s| FetchError::Rpc(format!("validator_set: {}", s.message())))?;
+    let mempool = client
+        .get_mempool(0)
         .await
-        .map_err(|e| FetchError::Rpc(format!("status decode: {e}")))?;
-
-    let active_validators = body
-        .pointer("/validators/active_count")
-        .and_then(Value::as_u64)
-        .map(|n| u32::try_from(n).unwrap_or(u32::MAX))
-        .unwrap_or(0);
-    let total_validators = body
-        .pointer("/validators/top")
-        .and_then(Value::as_array)
-        .map(|a| u32::try_from(a.len()).unwrap_or(u32::MAX))
-        .unwrap_or(0);
-    let mempool_pending = body
-        .pointer("/mempool/size")
-        .and_then(Value::as_u64)
-        .unwrap_or(0);
+        .map_err(|s| FetchError::Rpc(format!("mempool: {}", s.message())))?;
 
     Ok(SentrixStatusSubset {
-        active_validators,
-        total_validators,
-        mempool_pending,
+        active_validators: validators.active_count,
+        total_validators: validators.total_count,
+        mempool_pending: u64::from(mempool.size),
     })
 }
 
@@ -241,30 +221,15 @@ fn SupplyBar() -> impl IntoView {
 
     #[cfg(target_arch = "wasm32")]
     {
-        use gloo_net::http::Request;
-        use serde_json::Value;
+        use crate::grpc::client::SentrixGrpcClient;
         leptos::task::spawn_local(async move {
-            // Same REST-bridge story as the validator/mempool fields —
-            // gRPC `GetSupply` lives in chain v2.1.72 (still in review)
-            // so we hit the existing JSON endpoint until that ships.
-            let net = crate::state::network::Network::from_host(
-                &web_sys::window()
-                    .and_then(|w| w.location().host().ok())
-                    .unwrap_or_default(),
-            );
-            let endpoint = format!("{}/sentrix_status_extended", net.rpc_url());
+            // gRPC `GetSupply` shipped in chain v2.1.72 across both networks
+            // 2026-05-05. 5 s poll matches the rest of the panel's slow
+            // signals; the headline 1 s poll lives on StatsDashboard above.
+            let mut client = SentrixGrpcClient::new(crate::GRPC_ENDPOINT);
             loop {
-                if let Ok(resp) = Request::get(&endpoint).send().await {
-                    if resp.ok() {
-                        if let Ok(body) = resp.json::<Value>().await {
-                            if let Some(v) = body
-                                .pointer("/supply/minted_sentri")
-                                .and_then(Value::as_u64)
-                            {
-                                minted_srx.set(v / 100_000_000);
-                            }
-                        }
-                    }
+                if let Ok(supply) = client.get_supply().await {
+                    minted_srx.set(supply.minted_sentri / 100_000_000);
                 }
                 crate::util::sleep_ms(5_000).await;
             }
