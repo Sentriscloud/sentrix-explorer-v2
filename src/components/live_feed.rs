@@ -7,6 +7,7 @@
 
 use leptos::prelude::*;
 
+use crate::components::identicon::Identicon;
 use crate::components::skeleton::SkeletonRow;
 use crate::i18n::{t, use_lang};
 use crate::state::feed::{BlockFeedState, BlockRow};
@@ -54,8 +55,10 @@ pub fn LiveBlockFeed() -> impl IntoView {
 
 #[component]
 fn BlockTile(row: BlockRow) -> impl IntoView {
-    // 4-4 hash truncation with 0x prefix — `0x3a93…874f` reads as
-    // "address-shape" hex everywhere, no Solana-style identicon noise.
+    // Block PP — identicon seeded off the block hash. Returns a
+    // deterministic geometric pattern so each block reads as
+    // identifiable at a glance, doubles as the row's leading visual.
+    let avatar_seed = row.hash_hex.clone();
     let hash_short = if row.hash_hex.len() >= 8 {
         format!(
             "0x{}…{}",
@@ -65,7 +68,6 @@ fn BlockTile(row: BlockRow) -> impl IntoView {
     } else {
         format!("0x{}", row.hash_hex)
     };
-    let height_short_hex = format!("{:x}", row.height);
     let timestamp = row.timestamp;
 
     view! {
@@ -74,8 +76,8 @@ fn BlockTile(row: BlockRow) -> impl IntoView {
             class="group flex items-center justify-between rounded-xl border border-zinc-800/40 bg-zinc-900/30 p-4 transition-colors hover:border-emerald-500/30 hover:bg-zinc-900/50"
         >
             <div class="flex items-center gap-4">
-                <div class="flex h-10 w-12 items-center justify-center rounded-md border border-emerald-500/20 bg-emerald-500/5 font-mono text-[10px] font-semibold tabular-nums text-emerald-500/80">
-                    {height_short_hex}
+                <div class="identicon-frame h-10 w-10 rounded-lg ring-1 ring-zinc-800/80 transition-shadow group-hover:ring-emerald-500/40">
+                    <Identicon address_hex=avatar_seed size=40 />
                 </div>
                 <div>
                     <div class="font-mono text-base font-bold tabular-nums text-zinc-100 group-hover:text-emerald-500">
