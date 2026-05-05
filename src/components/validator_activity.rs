@@ -47,12 +47,10 @@ pub fn ValidatorActivity() -> impl IntoView {
         <section class="glass-card rounded-2xl p-6">
             <header class="mb-4 flex items-center justify-between">
                 <div>
-                    <h3 class="text-sm font-semibold uppercase tracking-wider text-zinc-300">
+                    <div class="eyebrow text-zinc-500">"BFT · Producers"</div>
+                    <h3 class="mt-1 font-mono text-base font-bold tracking-tight text-zinc-100">
                         "Validator activity"
                     </h3>
-                    <p class="mt-0.5 text-[10px] text-zinc-500">
-                        "Distribution across the live feed window"
-                    </p>
                 </div>
                 <span class="status-pill">
                     {move || format!("{} blocks", stats.with(|s| s.1))}

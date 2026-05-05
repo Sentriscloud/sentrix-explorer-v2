@@ -55,20 +55,16 @@ body {
    regardless of v3/v4 ambiguity.
    ─────────────────────────────────────────────────────────────── */
 
+/* Section card. Editorial framing — tight border, subtle elevation,
+   no glassmorphism (anti-pattern per sentris brand kit). The inset
+   highlight stays so the surface reads as raised against bg-zinc-950. */
 .glass-card {
-    background-color: rgba(24, 24, 27, 0.5); /* zinc-900/50 per spec */
-    border: 1px solid rgba(255, 255, 255, 0.08); /* white/10 ish */
+    background-color: rgba(20, 20, 23, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 0.75rem;
     box-shadow:
-        0 25px 50px -12px rgba(0, 0, 0, 0.5),
-        inset 0 1px 0 rgba(255, 255, 255, 0.03);
-}
-
-@supports (backdrop-filter: blur(12px)) or (-webkit-backdrop-filter: blur(12px)) {
-    .glass-card {
-        -webkit-backdrop-filter: blur(12px);
-        backdrop-filter: blur(12px);
-    }
+        0 1px 0 rgba(255, 255, 255, 0.03) inset,
+        0 12px 32px -16px rgba(0, 0, 0, 0.55);
 }
 
 .glass-card-interactive {
@@ -77,7 +73,7 @@ body {
         transform 200ms ease;
 }
 .glass-card-interactive:hover {
-    border-color: rgba(245, 158, 11, 0.35);
+    border-color: rgba(219, 193, 127, 0.32);
     transform: translateY(-1px);
 }
 

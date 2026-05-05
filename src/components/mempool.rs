@@ -17,9 +17,12 @@ pub fn MempoolWatcher() -> impl IntoView {
     view! {
         <section class="glass-card rounded-2xl p-6">
             <header class="mb-4 flex items-center justify-between">
-                <h2 class="text-xl font-bold italic tracking-tighter text-zinc-100">
-                    {move || t(lang.get(), "mempool.pending")}
-                </h2>
+                <div>
+                    <div class="eyebrow text-zinc-500">"Mempool · Pending"</div>
+                    <h2 class="mt-1 font-mono text-lg font-bold tracking-tight text-zinc-100">
+                        {move || t(lang.get(), "mempool.pending")}
+                    </h2>
+                </div>
                 <span class="status-pill">{move || m.status.get()}</span>
             </header>
 

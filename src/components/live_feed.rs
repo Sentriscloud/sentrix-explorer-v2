@@ -19,14 +19,17 @@ pub fn LiveBlockFeed() -> impl IntoView {
 
     view! {
         <section class="glass-card rounded-2xl p-6">
-            <header class="mb-6 flex items-center justify-between">
-                <h2 class="text-xl font-bold italic tracking-tighter text-zinc-100">
-                    {move || t(lang.get(), "feed.latest_blocks")}
-                </h2>
-                <span class="flex items-center gap-2 rounded-md border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-xs text-amber-400">
-                    <span class="relative flex h-2 w-2">
-                        <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75"></span>
-                        <span class="relative inline-flex h-2 w-2 rounded-full bg-amber-500"></span>
+            <header class="mb-5 flex items-center justify-between">
+                <div>
+                    <div class="eyebrow text-zinc-500">"Network · Live"</div>
+                    <h2 class="mt-1 font-mono text-lg font-bold tracking-tight text-zinc-100">
+                        {move || t(lang.get(), "feed.latest_blocks")}
+                    </h2>
+                </div>
+                <span class="inline-flex items-center gap-2 rounded-full border border-sentrix-gold/30 bg-sentrix-gold/10 px-2.5 py-1 text-[11px] font-medium tracking-wide text-sentrix-gold">
+                    <span class="relative flex h-1.5 w-1.5">
+                        <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-sentrix-gold opacity-70"></span>
+                        <span class="relative inline-flex h-1.5 w-1.5 rounded-full bg-sentrix-gold"></span>
                     </span>
                     {move || feed.status.get()}
                 </span>
@@ -56,23 +59,30 @@ fn BlockTile(row: BlockRow) -> impl IntoView {
     let avatar_seed = row.hash_hex.clone();
 
     view! {
-        <div class="group flex items-center justify-between rounded-xl border border-zinc-800/30 bg-zinc-900/40 p-4 transition-all hover:border-zinc-700">
+        <a
+            href=format!("/block/{}", row.height)
+            class="group flex items-center justify-between rounded-xl border border-zinc-800/40 bg-zinc-900/30 p-4 transition-colors hover:border-sentrix-gold/30 hover:bg-zinc-900/50"
+        >
             <div class="flex items-center gap-4">
-                <div class="identicon-frame h-10 w-10 rounded-lg ring-1 ring-zinc-800/80 transition-shadow group-hover:ring-amber-500/40">
+                <div class="identicon-frame h-10 w-10 rounded-lg ring-1 ring-zinc-800/80 transition-shadow group-hover:ring-sentrix-gold/40">
                     <Identicon address_hex=avatar_seed size=40 />
                 </div>
                 <div>
-                    <div class="font-mono font-bold text-zinc-100">"#" {row.height}</div>
-                    <div class="hex w-32 truncate text-xs text-zinc-500">
+                    <div class="font-mono text-base font-bold tabular-nums text-zinc-100 group-hover:text-sentrix-gold">
+                        "#" {row.height}
+                    </div>
+                    <div class="hex w-32 truncate text-[11px] text-zinc-500">
                         {hash_preview} "…"
                     </div>
                 </div>
             </div>
             <div class="text-right">
-                <div class="text-sm font-bold text-zinc-300">{row.tx_count} " Txs"</div>
-                <div class="text-[10px] text-zinc-600">{row.timestamp}</div>
+                <div class="font-mono text-sm font-semibold tabular-nums text-zinc-300">
+                    {row.tx_count} " Txs"
+                </div>
+                <div class="font-mono text-[10px] tabular-nums text-zinc-600">{row.timestamp}</div>
             </div>
-        </div>
+        </a>
     }
 }
 

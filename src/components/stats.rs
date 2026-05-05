@@ -90,13 +90,12 @@ pub fn StatsPanel() -> impl IntoView {
 
 #[component]
 fn SparkCard(label: &'static str, col_span: &'static str, children: Children) -> impl IntoView {
-    let class =
-        format!("col-span-2 rounded-xl border border-zinc-800/40 bg-zinc-900/40 p-4 {col_span}");
+    let class = format!(
+        "corner-lines relative col-span-2 rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-4 {col_span}"
+    );
     view! {
         <div class=class>
-            <div class="mb-2 text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                {label}
-            </div>
+            <div class="eyebrow mb-3 text-zinc-500">{label}</div>
             {children()}
         </div>
     }
@@ -108,16 +107,14 @@ fn Stat(label: &'static str, value: Signal<String>) -> impl IntoView {
     // text in for a small skeleton bar so the panel doesn't read as
     // "broken" before the first block lands.
     view! {
-        <div class="rounded-xl border border-zinc-800/40 bg-zinc-900/40 p-4">
-            <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                {label}
-            </div>
-            <div class="mt-1">
+        <div class="corner-lines relative rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-4 transition-colors hover:border-sentrix-bronze/40">
+            <div class="eyebrow text-zinc-500">{label}</div>
+            <div class="mt-2.5">
                 <Show
                     when=move || value.get() != "—"
                     fallback=|| view! { <Skeleton class="h-6 w-20" /> }
                 >
-                    <span class="font-mono text-lg font-bold text-zinc-100">
+                    <span class="font-mono text-xl font-bold tabular-nums text-zinc-100">
                         {move || value.get()}
                     </span>
                 </Show>
@@ -128,19 +125,30 @@ fn Stat(label: &'static str, value: Signal<String>) -> impl IntoView {
 
 #[component]
 fn SupplyBar() -> impl IntoView {
-    // Circulating supply stays as a TBD slot until tokenomics data is
-    // wired in. Keeping a pending state here is honest about the
-    // current state rather than fabricating a number.
+    // Genesis premine = 63 M of 315 M cap → 20 % minted, 80 % subsidy
+    // emission still ahead of the chain. Hardcoded against the audited
+    // tokenomics constants because the indexer doesn't surface a
+    // canonical "minted" total yet; swap the math to a live signal once
+    // `bc.total_minted` is exposed via REST.
+    let minted: u64 = 63_000_000;
+    let cap: u64 = TOTAL_SUPPLY_SRX;
+    let pct = (minted * 100) / cap.max(1);
+    let pct_str = format!("{}%", pct);
+    let bar_width = format!("width: {}%;", pct);
+
     view! {
-        <div class="rounded-xl border border-zinc-800/40 bg-zinc-900/40 p-4">
-            <div class="flex items-center justify-between text-xs">
-                <span class="text-zinc-400">"Circulating · Locked"</span>
-                <span class="font-mono text-zinc-500">"TBD · pending tokenomics integration"</span>
+        <div class="rounded-xl border border-zinc-800/60 bg-zinc-900/40 p-4">
+            <div class="flex items-center justify-between">
+                <span class="eyebrow text-zinc-500">"Minted · Cap"</span>
+                <span class="font-mono text-xs text-zinc-300">
+                    {fmt_int(minted)} " / " {fmt_int(cap)} " SRX · " {pct_str}
+                </span>
             </div>
-            <div class="mt-3 h-2 overflow-hidden rounded-full bg-zinc-800">
-                // Placeholder track. Replace `style:width` with a real
-                // ratio once `circulating_supply()` returns a value.
-                <div class="h-full w-0 rounded-full bg-gradient-to-r from-amber-400 to-amber-600 transition-all duration-700" />
+            <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-zinc-800/60">
+                <div
+                    class="h-full rounded-full bg-sentrix-gold transition-all duration-700"
+                    style=bar_width
+                />
             </div>
         </div>
     }
