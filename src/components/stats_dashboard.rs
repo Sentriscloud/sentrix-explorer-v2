@@ -312,28 +312,27 @@ enum StatsState {
     Error(String),
 }
 
-/// Network switcher — replaces the static "Mainnet · chain · 7119" badge.
-/// Click toggles a dropdown with both networks; selecting one navigates
-/// to the matching subdomain (each network ships its own bundle, so
-/// flipping context isn't enough — we have to cross-domain).
+/// Network switcher — uses native `<details>` so it works pre-hydration.
+/// Earlier impl was a Leptos `<button>` + `RwSignal<bool>` toggle, but
+/// that needs WASM live to wire the click handler — the user reported
+/// the dropdown felt unresponsive on testnet (1-2 s WASM hydrate
+/// delay). `<details>/<summary>` is browser-native: zero JS to open,
+/// links inside navigate cross-subdomain regardless of hydration
+/// state. Same UX, no race against WASM.
 #[component]
 fn NetworkBadge() -> impl IntoView {
     let network = use_network();
-    let open = RwSignal::new(false);
+
+    let summary_class = move || {
+        let base = "inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-medium tracking-wide list-none transition-colors";
+        format!("{base} {}", network.get().accent_pill())
+    };
+    let dot_class = move || format!("h-1.5 w-1.5 rounded-full {}", network.get().accent_bg());
 
     view! {
-        <div class="relative inline-flex" role="status" aria-live="polite">
-            <button
-                type="button"
-                aria-haspopup="listbox"
-                aria-expanded=move || open.get().to_string()
-                on:click=move |_| open.update(|o| *o = !*o)
-                class=move || {
-                    let base = "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-medium tracking-wide transition-colors";
-                    format!("{base} {} hover:bg-opacity-20", network.get().accent_pill())
-                }
-            >
-                <span class=move || format!("h-1.5 w-1.5 rounded-full {}", network.get().accent_bg()) />
+        <details class="group relative inline-block">
+            <summary class=summary_class>
+                <span class=dot_class></span>
                 <span>{move || network.get().label()}</span>
                 <span class="font-mono text-[10px] text-zinc-500">
                     "chain · " {move || network.get().chain_id().to_string()}
@@ -346,22 +345,16 @@ fn NetworkBadge() -> impl IntoView {
                     stroke-width="2"
                     stroke-linecap="round"
                     stroke-linejoin="round"
-                    class="h-3 w-3 text-zinc-500"
+                    class="h-3 w-3 text-zinc-500 transition-transform group-open:rotate-180"
                 >
                     <path d="M6 9l6 6 6-6" />
                 </svg>
-            </button>
-
-            <Show when=move || open.get() fallback=|| ()>
-                <div
-                    class="absolute left-0 top-full z-20 mt-1 w-56 overflow-hidden rounded-md border border-zinc-800 bg-zinc-950 shadow-lg"
-                    role="listbox"
-                >
-                    <NetworkOption target=Network::Mainnet current=network />
-                    <NetworkOption target=Network::Testnet current=network />
-                </div>
-            </Show>
-        </div>
+            </summary>
+            <div class="absolute left-0 top-full z-20 mt-1 w-56 overflow-hidden rounded-md border border-zinc-800 bg-zinc-950 shadow-lg">
+                <NetworkOption target=Network::Mainnet current=network />
+                <NetworkOption target=Network::Testnet current=network />
+            </div>
+        </details>
     }
 }
 
@@ -370,8 +363,6 @@ fn NetworkOption(target: Network, current: RwSignal<Network>) -> impl IntoView {
     view! {
         <a
             href=target.explorer_url()
-            role="option"
-            aria-selected=move || (current.get() == target).to_string()
             class="flex items-center justify-between gap-3 px-3 py-2 text-xs transition-colors hover:bg-zinc-900"
         >
             <span class="flex items-center gap-2">

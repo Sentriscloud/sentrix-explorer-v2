@@ -307,6 +307,13 @@ html.solar .solar-only {
    utilities the brand kit calls out.
    ─────────────────────────────────────────────────────────────── */
 
+/* Hide the default disclosure triangle on `<summary>` — we render
+   our own SVG chevron + want zero browser-default chrome bleeding in.
+   Firefox respects `list-style: none` (set inline on the summary class);
+   Chromium needs the pseudo-element. Both pinned here. */
+summary::-webkit-details-marker { display: none; }
+summary { list-style: none; }
+
 /* Eyebrow label — small uppercase mono, used above stat values and
    section headings. Tighter than text-xs/uppercase tracking-wider
    because the brand voice wants explicit editorial hand. */
