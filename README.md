@@ -1,5 +1,10 @@
 # Sentrix Explorer V2 — Obsidian Engine
 
+[![CI](https://github.com/Sentriscloud/sentrix-explorer-v2/actions/workflows/ci.yml/badge.svg)](https://github.com/Sentriscloud/sentrix-explorer-v2/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/Sentriscloud/sentrix-explorer-v2)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/Sentriscloud/sentrix-explorer-v2?include_prereleases&sort=semver)](https://github.com/Sentriscloud/sentrix-explorer-v2/releases/latest)
+
+
 Full-Rust block explorer for Sentrix Chain. Browser-side WASM bundle talks
 to the chain over gRPC-Web (`grpc.sentrixchain.com (mainnet) / grpc-testnet.sentrixchain.com (testnet)`); zero JSON-RPC, zero
 JavaScript glue.
