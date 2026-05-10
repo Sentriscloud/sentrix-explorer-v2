@@ -78,16 +78,19 @@ pub const fn grpc_endpoint() -> &'static str {
 }
 
 /// EVM JSON-RPC endpoint — `eth_*` methods served at port 8545,
-/// fronted by Caddy at the public RPC subdomain.
+/// fronted by Caddy at the public RPC subdomain. Bare host (no `/rpc`
+/// suffix) matches the canonical chainlist registry submission and the
+/// rest of the Sentrix frontend stack — both forms route to the same
+/// backend, but bare is the convention every wallet-add flow uses.
 pub const fn evm_rpc_endpoint() -> &'static str {
     match Network::current() {
         Network::Mainnet => match option_env!("SENTRIX_EVM_MAINNET") {
             Some(s) => s,
-            None => "https://rpc.sentrixchain.com/rpc",
+            None => "https://rpc.sentrixchain.com",
         },
         Network::Testnet => match option_env!("SENTRIX_EVM_TESTNET") {
             Some(s) => s,
-            None => "https://testnet-rpc.sentrixchain.com/rpc",
+            None => "https://testnet-rpc.sentrixchain.com",
         },
     }
 }
