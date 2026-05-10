@@ -9,6 +9,14 @@ Full-Rust block explorer for Sentrix Chain. Browser-side WASM bundle talks
 to the chain over gRPC-Web (`grpc.sentrixchain.com (mainnet) / grpc-testnet.sentrixchain.com (testnet)`); zero JSON-RPC, zero
 JavaScript glue.
 
+**Live:**
+- Mainnet: https://scan.sentriscloud.com
+- Testnet: https://scan-testnet.sentriscloud.com
+
+> **Two explorers coexist by design.** This is the **WASM V2 Obsidian** — full-Rust + tonic-web, near-native parse cost, signal-driven UI. For the **Next.js V1** alternative — feature-rich (validator pages, leaderboard, EIP-3091 deeplinks, contract verification panel, multi-locale i18n) — see [`Sentriscloud/frontend/apps/scan`](https://github.com/Sentriscloud/frontend/tree/main/apps/scan) at `scan.sentrixchain.com` / `scan-testnet.sentrixchain.com`. Pick whichever fits the workflow; neither replaces the other.
+
+The gRPC-Web wrapper used here has been extracted into a standalone crate — see [`Sentriscloud/sentrix-grpc-wasm`](https://github.com/Sentriscloud/sentrix-grpc-wasm) — so other browser dApps (Yew, plain wasm-bindgen) can reuse it without re-implementing the `tonic-web-wasm-client` glue.
+
 ## Architecture
 
 ```
