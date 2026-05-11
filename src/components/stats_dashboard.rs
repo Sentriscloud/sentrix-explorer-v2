@@ -90,9 +90,9 @@ async fn fetch_chain_stats(network: Network) -> Result<ChainStats, FetchError> {
 
 /// Subset of fields the dashboard cares about. Backed by gRPC v0.4
 /// `GetValidatorSet` + `GetMempool` — chain v2.1.72 shipped 2026-05-05
-/// across both mainnet (vps1/vps2/vps3/vps5 simul-start) and testnet
-/// (vps4 docker), so the read-only RPCs are now real on both networks.
-/// Replaces the previous REST `/sentrix_status_extended` bridge.
+/// across both mainnet (4-validator simul-start) and testnet (docker),
+/// so the read-only RPCs are now real on both networks. Replaces the
+/// previous REST `/sentrix_status_extended` bridge.
 #[cfg(target_arch = "wasm32")]
 #[derive(Default)]
 struct SentrixStatusSubset {

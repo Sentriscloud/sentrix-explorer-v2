@@ -16,7 +16,7 @@
 
 set -euo pipefail
 
-DEST_HOST="${DEST_HOST:-217.15.163.71}"
+DEST_HOST="${DEST_HOST:?DEST_HOST must be set — production host IP/DNS}"
 # Production runs the explorer under a non-privileged service user; ssh
 # as that user so rsync preserves the file ownership systemd expects.
 # Per-instance restart needs root via sudo (see `restart()` below) — the
