@@ -11,7 +11,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 # Leptos core
 leptos = { version = "0.7" }
-leptos_meta = { version = "0.7" }
+leptos_meta = { version = "0.8" }
 leptos_router = { version = "0.7" }
 leptos_axum = { version = "0.7", optional = true }
 
