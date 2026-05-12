@@ -25,10 +25,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // the proto compiles on the same hosts.
     config.protoc_arg("--experimental_allow_proto3_optional");
 
-    tonic_build::configure()
+    tonic_prost_build::configure()
         .build_client(true)
         .build_server(build_server)
-        .compile_protos_with_config(config, &["proto/sentrix.proto"], &["proto"])?;
+        .compile_with_config(config, &["proto/sentrix.proto"], &["proto"])?;
 
     println!("cargo:rerun-if-changed=proto/sentrix.proto");
     println!("cargo:rerun-if-env-changed=CARGO_FEATURE_SSR");
