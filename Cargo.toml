@@ -22,9 +22,10 @@ tower = { version = "0.5", optional = true }
 tower-http = { version = "0.6", features = ["fs"], optional = true }
 
 # gRPC-Web client (browser-side)
-tonic = { version = "0.12", default-features = false, features = ["prost", "codegen"] }
-tonic-web-wasm-client = "0.6"
-prost = "0.13"
+tonic = { version = "0.14", default-features = false, features = ["codegen"] }
+tonic-prost = "0.14"
+tonic-web-wasm-client = "0.9"
+prost = "0.14"
 
 # Async glue
 futures = "0.3"
@@ -37,7 +38,7 @@ console_error_panic_hook = "0.1"
 http = "1"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-gloo-net = { version = "0.6", default-features = false, features = ["http", "json"] }
+gloo-net = { version = "0.7", default-features = false, features = ["http", "json"] }
 js-sys = "0.3"
 web-sys = { version = "0.3", features = [
     "Window",
@@ -59,8 +60,8 @@ web-sys = { version = "0.3", features = [
 ] }
 
 [build-dependencies]
-tonic-build = { version = "0.12", default-features = false, features = ["prost"] }
-prost-build = "0.13"
+tonic-prost-build = { version = "0.14", default-features = false }
+prost-build = "0.14"
 
 [features]
 hydrate = ["leptos/hydrate"]
