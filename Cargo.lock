@@ -1881,9 +1881,9 @@ dependencies = [
 
 [[package]]
 name = "sentrix-proto"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c608dbefa2b41ad2ffffbcc3f69388fdb1e95257411b93dfb57c888a17566d40"
+checksum = "e4a96198c479e3dad9d7a2718c3d12d86a228cd07a2bade9091ef64206c273c9"
 dependencies = [
  "prost",
  "prost-build",
@@ -2353,7 +2353,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac2a5518c70fa84342385732db33fb3f44bc4cc748936eb5833d2df34d6445ef"
 dependencies = [
  "async-trait",
- "axum",
  "base64",
  "bytes",
  "h2",
