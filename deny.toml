@@ -6,7 +6,15 @@ all-features = true
 
 [advisories]
 yanked = "deny"
-ignore = []
+ignore = [
+    # `paste` is unmaintained (author archived) but still a transitive dep
+    # of alloy / sqlx / prost. No vulnerability — just dormant. Mirrors
+    # the ignore in indexer-rs + the chain repo.
+    "RUSTSEC-2024-0436",
+    # `rustls-pemfile` is deprecated in favour of `rustls-pki-types`;
+    # transitive via reqwest -> rustls. No vulnerability.
+    "RUSTSEC-2025-0134",
+]
 
 [licenses]
 unused-allowed-license = "allow"
@@ -27,6 +35,9 @@ allow = [
     "BUSL-1.1",
     # webpki-roots v1.x: CDLA-Permissive-2.0 (transitive via reqwest -> rustls).
     "CDLA-Permissive-2.0",
+    # Boost Software License — permissive OSI-approved, transitive via
+    # xxhash-rust used by leptos's hashing layer.
+    "BSL-1.0",
 ]
 
 [bans]
