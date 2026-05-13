@@ -28,7 +28,7 @@ tower-http = { version = "0.6", features = ["fs"], optional = true }
 # build target compiles (transport pulls tokio-net / mio which don't
 # support wasm32). The browser uses `tonic-web-wasm-client`; the SSR
 # binary uses tonic's Channel-equivalent built on top of axum's HTTP.
-sentrix-proto = { version = "0.1", default-features = false }
+sentrix-proto = { version = "0.1.1", default-features = false }
 tonic = { version = "0.14", default-features = false, features = ["codegen"] }
 tonic-web-wasm-client = "0.9"
 
