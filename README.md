@@ -20,19 +20,19 @@ The gRPC-Web wrapper used here has been extracted into a standalone crate — se
 ## Architecture
 
 ```
-proto/sentrix.proto       single source of truth (mirrored from sentrix/crates/sentrix-grpc)
+sentrix-proto crate        single source of truth (crates.io, default-features = false to drop tonic-transport for wasm)
    │
-   ▼  build.rs / tonic-build
-src/grpc/pb               prost types + tonic client stubs
-   │
-   ▼
-src/grpc/client.rs        SentrixGrpcClient — wraps tonic-web-wasm-client transport
+   ▼  re-exported as `pb` in src/grpc/mod.rs
+src/grpc/pb                prost types + tonic client stubs (now from sentrix-proto, no local codegen)
    │
    ▼
-src/components/live_feed  signal-driven LiveBlockFeed (stream → poll fallback)
+src/grpc/client.rs         SentrixGrpcClient — wraps tonic-web-wasm-client transport
    │
    ▼
-src/screens/dashboard     route view
+src/components/live_feed   signal-driven LiveBlockFeed (stream → poll fallback)
+   │
+   ▼
+src/screens/dashboard      route view
 ```
 
 ## Why this beats Etherscan-class explorers
